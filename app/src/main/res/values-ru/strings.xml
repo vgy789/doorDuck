@@ -1,0 +1,82 @@
+<resources>
+    <string name="app_name">doorDuck</string>
+    <string name="widget_description">Виджет QR для входа в кампус</string>
+    <string name="widget_hidden_description">Виджет QR скрыт до нажатия</string>
+    <string name="rocket_tokens_url">https://rocketchat-student.21-school.ru/account/tokens</string>
+
+    <string name="wizard_title">Мастер настройки DoorDuck</string>
+    <string name="wizard_welcome">Привет! Я DoorDuck. Я поддерживаю рабочий QR-виджет входа в кампус на рабочем столе.</string>
+    <string name="wizard_user_id_hint">Введи свой Rocket.Chat user ID.</string>
+    <string name="wizard_token_hint">Введи свой X-Auth-Token.</string>
+    <string name="wizard_check_hint">Перед завершением настройки проверь соединение с Rocket.Chat. Обязательно нажми Ok в окне создания токена Rocket.Chat.</string>
+    <string name="wizard_done">Настройка завершена.</string>
+
+    <string name="settings_title">Настройки DoorDuck</string>
+    <string name="endpoint_label">Rocket.Chat API endpoint</string>
+    <string name="token_label">X-Auth-Token</string>
+    <string name="user_id_label">Rocket.Chat user ID</string>
+    <string name="manual_refresh">Обновить QR сейчас</string>
+    <string name="app_qr_title">Текущий QR в приложении</string>
+    <string name="app_qr_empty">QR-код ещё не загружен. Нажми «Обновить QR сейчас».</string>
+
+    <string name="action_start">Начать</string>
+    <string name="action_next">Далее</string>
+    <string name="action_back">Назад</string>
+    <string name="action_finish">Завершить настройку</string>
+    <string name="action_open_settings">Открыть настройки</string>
+    <string name="action_run_wizard">Запустить мастер</string>
+    <string name="action_check_connection">Проверить соединение</string>
+    <string name="action_reset_endpoint">Сбросить endpoint</string>
+    <string name="action_clear_token">Очистить токен</string>
+    <string name="action_show_token">Показать токен</string>
+    <string name="action_hide_token">Скрыть токен</string>
+
+    <string name="instruction_title">Как получить ID и Token</string>
+    <string name="instruction_step_1">1. Открой Rocket в браузере (в мобильном приложении функции нет): Аватар → Настройки → Токены для личного доступа.</string>
+    <string name="instruction_step_2">2. Укажи любое имя токена.</string>
+    <string name="instruction_step_3">3. В выпадающем списке рядом с кнопкой добавления выбери \"Игнорировать двухфакторную авторизацию\".</string>
+    <string name="instruction_step_4">4. Нажми «Добавить» и скопируй созданные id и Token.</string>
+    <string name="instruction_step_5">5. Не удаляй токен, DoorDuck будет использовать его для обновления QR.</string>
+    <string name="instruction_open_link">Открыть страницу токенов Rocket</string>
+
+    <string name="connection_ok">Соединение успешно проверено.</string>
+    <string name="connection_unauthorized">Неверный token или user ID.</string>
+    <string name="connection_bot_unavailable">Бот недоступен или нет доступа к нему.</string>
+    <string name="connection_network_error">Сетевая ошибка при проверке соединения.</string>
+    <string name="connection_unknown_error">Неизвестная ошибка при проверке соединения.</string>
+
+    <string name="error_endpoint_https">Endpoint должен начинаться с https://</string>
+    <string name="error_token_required">Токен обязателен.</string>
+    <string name="error_user_id_required">User ID обязателен.</string>
+    <string name="error_connection_check_required">Перед завершением мастера успешно выполни проверку соединения.</string>
+
+    <string name="info_settings_saved">Настройки сохранены.</string>
+    <string name="info_refresh_queued">Запрос на обновление отправлен.</string>
+    <string name="info_wizard_done">Мастер завершен, настройки применены.</string>
+    <string name="toast_qr_refreshed">QR-код обновлён.</string>
+    <string name="toast_qr_refresh_failed">Не удалось обновить QR-код.</string>
+
+    <string name="status_title">Статус</string>
+    <string name="status_in_progress">Выполняется: %1$s</string>
+    <string name="status_last_sync">Последняя успешная синхронизация: %1$s</string>
+    <string name="status_expires">Срок действия до: %1$s</string>
+    <string name="status_last_error">Последняя ошибка: %1$s</string>
+    <string name="status_none">нет</string>
+    <string name="status_never">никогда</string>
+    <string name="status_unknown">неизвестно</string>
+    <string name="sync_error_not_configured">не настроено</string>
+    <string name="sync_error_unauthorized">ошибка авторизации</string>
+    <string name="sync_error_network">сетевая ошибка</string>
+    <string name="sync_error_bot_response_invalid">некорректный ответ бота</string>
+    <string name="sync_error_image_download_failed">не удалось загрузить изображение</string>
+    <string name="sync_error_unknown">неизвестная ошибка</string>
+
+    <string name="widget_not_configured">Открой приложение DoorDuck и настрой endpoint/token/user ID.</string>
+    <string name="widget_loading">Обновление QR…</string>
+    <string name="widget_error">Последнее обновление завершилось ошибкой</string>
+    <string name="widget_hidden_tap_to_show">QR скрыт. Нажми на виджет, чтобы показать.</string>
+    <string name="widget_no_qr">QR-код ещё не получен</string>
+    <string name="widget_expired">Срок QR-кода истёк. Открой doorDuck для обновления.</string>
+    <string name="widget_qr_content_description">QR-код</string>
+    <string name="widget_last_error">Последняя ошибка: %1$s</string>
+</resources>
