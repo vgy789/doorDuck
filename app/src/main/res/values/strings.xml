@@ -1,3 +1,82 @@
 <resources>
     <string name="app_name">doorDuck</string>
+    <string name="widget_description">QR widget for building access</string>
+    <string name="widget_hidden_description">QR widget hidden until tap</string>
+    <string name="rocket_tokens_url">https://rocketchat-student.21-school.ru/account/tokens</string>
+
+    <string name="wizard_title">DoorDuck Init Wizard</string>
+    <string name="wizard_welcome">Hi! I am DoorDuck. I keep your campus QR widget active on the home screen.</string>
+    <string name="wizard_user_id_hint">Enter your Rocket.Chat user ID.</string>
+    <string name="wizard_token_hint">Enter your X-Auth-Token.</string>
+    <string name="wizard_check_hint">Check connection with Rocket.Chat before finishing setup.</string>
+    <string name="wizard_done">Setup completed.</string>
+
+    <string name="settings_title">DoorDuck Settings</string>
+    <string name="endpoint_label">Rocket.Chat API endpoint</string>
+    <string name="token_label">X-Auth-Token</string>
+    <string name="user_id_label">Rocket.Chat user ID</string>
+    <string name="manual_refresh">Refresh QR now</string>
+    <string name="app_qr_title">Current QR in app</string>
+    <string name="app_qr_empty">No QR code in local storage yet. Tap \"Refresh QR now\".</string>
+
+    <string name="action_start">Start</string>
+    <string name="action_next">Next</string>
+    <string name="action_back">Back</string>
+    <string name="action_finish">Finish setup</string>
+    <string name="action_open_settings">Open settings</string>
+    <string name="action_run_wizard">Run wizard</string>
+    <string name="action_check_connection">Check connection</string>
+    <string name="action_reset_endpoint">Reset endpoint</string>
+    <string name="action_clear_token">Clear token</string>
+    <string name="action_show_token">Show token</string>
+    <string name="action_hide_token">Hide token</string>
+
+    <string name="instruction_title">How to get ID and Token</string>
+    <string name="instruction_step_1">1. Open Rocket in browser (not available in mobile app): Avatar → Settings → Personal Access Tokens.</string>
+    <string name="instruction_step_2">2. Enter any token name.</string>
+    <string name="instruction_step_3">3. In dropdown next to Add button choose \"Ignore Two-Factor Authentication\".</string>
+    <string name="instruction_step_4">4. Click Add and copy generated id and Token.</string>
+    <string name="instruction_step_5">5. Do not delete the token, DoorDuck will use it for QR updates.</string>
+    <string name="instruction_open_link">Open Rocket tokens page</string>
+
+    <string name="connection_ok">Connection successful.</string>
+    <string name="connection_unauthorized">Invalid token or user ID.</string>
+    <string name="connection_bot_unavailable">Bot is unavailable or not accessible.</string>
+    <string name="connection_network_error">Network error during connection check.</string>
+    <string name="connection_unknown_error">Unknown error during connection check.</string>
+
+    <string name="error_endpoint_https">Endpoint must start with https://</string>
+    <string name="error_token_required">Token is required.</string>
+    <string name="error_user_id_required">User ID is required.</string>
+    <string name="error_connection_check_required">Run connection check successfully before finishing setup.</string>
+
+    <string name="info_settings_saved">Settings saved.</string>
+    <string name="info_refresh_queued">Refresh request queued.</string>
+    <string name="info_wizard_done">Wizard completed, settings are active.</string>
+    <string name="toast_qr_refreshed">QR code updated.</string>
+    <string name="toast_qr_refresh_failed">QR update failed.</string>
+
+    <string name="status_title">Status</string>
+    <string name="status_in_progress">In progress: %1$s</string>
+    <string name="status_last_sync">Last success: %1$s</string>
+    <string name="status_expires">Expires: %1$s</string>
+    <string name="status_last_error">Last error: %1$s</string>
+    <string name="status_none">none</string>
+    <string name="status_never">never</string>
+    <string name="status_unknown">unknown</string>
+    <string name="sync_error_not_configured">not configured</string>
+    <string name="sync_error_unauthorized">unauthorized</string>
+    <string name="sync_error_network">network error</string>
+    <string name="sync_error_bot_response_invalid">invalid bot response</string>
+    <string name="sync_error_image_download_failed">image download failed</string>
+    <string name="sync_error_unknown">unknown error</string>
+
+    <string name="widget_not_configured">Open DoorDuck app and configure endpoint/token/user ID.</string>
+    <string name="widget_loading">Updating QR code…</string>
+    <string name="widget_error">Last update failed</string>
+    <string name="widget_hidden_tap_to_show">QR hidden. Tap widget to show.</string>
+    <string name="widget_no_qr">No QR code yet</string>
+    <string name="widget_expired">QR code expired. Open doorDuck to refresh.</string>
+    <string name="widget_qr_content_description">QR code</string>
+    <string name="widget_last_error">Last error: %1$s</string>
 </resources>
