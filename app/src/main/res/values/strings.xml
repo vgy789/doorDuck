@@ -71,6 +71,16 @@
     <string name="sync_error_image_download_failed">image download failed</string>
     <string name="sync_error_unknown">unknown error</string>
 
+    <string name="widget_install_title">Add widget to home screen</string>
+    <string name="widget_install_hint">You can add the doorDuck widget from here, or manually via your launcher.</string>
+    <string name="widget_install_action">Add widget</string>
+    <string name="widget_install_step_1">1. Common way: long-press empty space on home screen → Widgets.</string>
+    <string name="widget_install_step_2">2. If your firmware blocks this gesture, open app search/menu and find the Widgets section.</string>
+    <string name="widget_install_step_3">3. Find doorDuck and place the QR widget on the home screen.</string>
+    <string name="widget_pin_requested">Widget pin dialog opened.</string>
+    <string name="widget_pin_not_supported">Automatic widget pin is not supported on this launcher. Add it manually.</string>
+    <string name="widget_pin_failed">Could not open widget pin dialog. Add widget manually from launcher widgets list.</string>
+
     <string name="widget_not_configured">Open DoorDuck app and configure endpoint/token/user ID.</string>
     <string name="widget_loading">Updating QR code…</string>
     <string name="widget_error">Last update failed</string>

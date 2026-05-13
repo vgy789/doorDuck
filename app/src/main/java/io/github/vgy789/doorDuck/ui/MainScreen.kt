@@ -1,6 +1,11 @@
 package io.github.vgy789.doorDuck.ui
 
+import android.appwidget.AppWidgetManager
+import android.content.ComponentName
+import android.content.Context
 import android.graphics.BitmapFactory
+import android.os.Build
+import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -39,6 +44,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.vgy789.doorDuck.R
 import io.github.vgy789.doorDuck.model.SyncError
+import io.github.vgy789.doorDuck.widget.QrGlanceWidgetReceiver
 import java.text.DateFormat
 import java.util.Date
 
@@ -267,6 +273,7 @@ private fun SettingsContent(state: MainUiState, viewModel: MainViewModel) {
 
     QrPreviewCard(state)
     StatusSection(state = state)
+    WidgetInstallCard()
     InstructionCard()
 }
 
@@ -305,6 +312,33 @@ private fun StatusSection(state: MainUiState) {
 }
 
 @Composable
+private fun WidgetInstallCard() {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(stringResource(R.string.widget_install_title), style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.widget_install_hint))
+            Button(
+                onClick = {
+                    val result = requestPinQrWidget(context)
+                    val messageRes = when (result) {
+                        WidgetPinRequestResult.REQUESTED -> R.string.widget_pin_requested
+                        WidgetPinRequestResult.NOT_SUPPORTED -> R.string.widget_pin_not_supported
+                        WidgetPinRequestResult.FAILED -> R.string.widget_pin_failed
+                    }
+                    Toast.makeText(context, context.getString(messageRes), Toast.LENGTH_LONG).show()
+                },
+            ) {
+                Text(stringResource(R.string.widget_install_action))
+            }
+            Text(stringResource(R.string.widget_install_step_1))
+            Text(stringResource(R.string.widget_install_step_2))
+            Text(stringResource(R.string.widget_install_step_3))
+        }
+    }
+}
+
+@Composable
 private fun InstructionCard() {
     val uriHandler = LocalUriHandler.current
     val url = stringResource(R.string.rocket_tokens_url)
@@ -321,6 +355,29 @@ private fun InstructionCard() {
             }
         }
     }
+}
+
+private fun requestPinQrWidget(context: Context): WidgetPinRequestResult {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+        return WidgetPinRequestResult.NOT_SUPPORTED
+    }
+    val appWidgetManager = context.getSystemService(AppWidgetManager::class.java)
+        ?: return WidgetPinRequestResult.NOT_SUPPORTED
+    if (!appWidgetManager.isRequestPinAppWidgetSupported) {
+        return WidgetPinRequestResult.NOT_SUPPORTED
+    }
+    val provider = ComponentName(context, QrGlanceWidgetReceiver::class.java)
+    return if (appWidgetManager.requestPinAppWidget(provider, null, null)) {
+        WidgetPinRequestResult.REQUESTED
+    } else {
+        WidgetPinRequestResult.FAILED
+    }
+}
+
+private enum class WidgetPinRequestResult {
+    REQUESTED,
+    NOT_SUPPORTED,
+    FAILED,
 }
 
 private fun Long.formatDateTime(): String = DateFormat.getDateTimeInstance().format(Date(this))

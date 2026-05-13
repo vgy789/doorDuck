@@ -71,6 +71,16 @@
     <string name="sync_error_image_download_failed">не удалось загрузить изображение</string>
     <string name="sync_error_unknown">неизвестная ошибка</string>
 
+    <string name="widget_install_title">Добавить виджет на рабочий стол</string>
+    <string name="widget_install_hint">Виджет doorDuck можно добавить кнопкой ниже или вручную через лаунчер.</string>
+    <string name="widget_install_action">Добавить виджет</string>
+    <string name="widget_install_step_1">1. Обычно: зажми пустое место на рабочем столе → Виджеты.</string>
+    <string name="widget_install_step_2">2. Если на вашей прошивке жест не работает, открой поиск/меню приложений и найди раздел «Виджеты».</string>
+    <string name="widget_install_step_3">3. Найди doorDuck и добавь QR-виджет на рабочий стол.</string>
+    <string name="widget_pin_requested">Открыт системный диалог добавления виджета.</string>
+    <string name="widget_pin_not_supported">Автодобавление не поддерживается этим лаунчером. Добавьте виджет вручную.</string>
+    <string name="widget_pin_failed">Не удалось открыть диалог добавления. Добавьте виджет вручную через список виджетов.</string>
+
     <string name="widget_not_configured">Открой приложение DoorDuck и настрой endpoint/token/user ID.</string>
     <string name="widget_loading">Обновление QR…</string>
     <string name="widget_error">Последнее обновление завершилось ошибкой</string>
