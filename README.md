@@ -3,34 +3,49 @@
 # doorDuck
 
 ![Android](https://img.shields.io/badge/Android-24%2B-3DDC84?logo=android&logoColor=white)
-![Kotlin](https://img.shields.io/badge/Kotlin-2.x-7F52FF?logo=kotlin&logoColor=white)
-![Jetpack Glance](https://img.shields.io/badge/Jetpack-Glance-4285F4)
+![iOS](https://img.shields.io/badge/iOS-14%2B-000000?logo=apple&logoColor=white)
+![Kotlin Multiplatform](https://img.shields.io/badge/Kotlin-Multiplatform-7F52FF?logo=kotlin&logoColor=white)
+![Compose Multiplatform](https://img.shields.io/badge/Compose-Multiplatform-4285F4)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](./LICENSE)
+
+`doorDuck` — мультиплатформенное приложение для School 21, которое получает QR для входа через Rocket.Chat API, сохраняет его локально и показывает:
+- в приложении на Android и iOS,
+- в Android и iOS виджете
 
 ## Скачать
 
 [Latest Release](https://github.com/vgy789/doorDuck/releases/latest) | [Download APK](https://github.com/vgy789/doorDuck/releases/latest/download/doorDuck-latest.apk) | [Download SHA256](https://github.com/vgy789/doorDuck/releases/latest/download/doorDuck-latest.apk.sha256)
 
-`doorDuck` — Android-приложение для School 21, которое получает QR для входа через Rocket.Chat API и показывает его:
-- в приложении,
-- в виджете на рабочем столе.
+Сейчас в релизах публикуется Android APK. iOS-версия собирается из исходников.
 
 ## Возможности
 
-- Пошаговый init wizard (RU/EN) для первичной настройки.
-- Проверка доступа и получение нового QR через Rocket.Chat API.
-- Парсинг `expire on dd.MM.yyyy` из ответа бота и планирование автообновления к сроку истечения.
-- Тап по виджету открывает приложение.
-- Ручное обновление QR из приложения.
+- Пошаговый мастер первичной настройки на RU/EN.
+- Проверка доступа к Rocket.Chat и валидация учётных данных.
+- Автообновление QR перед истечением срока действия.
+- Масштабируемый виджет на Android и iOS.
 
-## Стек
+## Архитектура
 
-- Kotlin + Jetpack Compose
-- Jetpack Glance (App Widgets)
+Проект разделён на три основных модуля:
+
+- `shared` — Kotlin Multiplatform модуль с общей бизнес-логикой, Compose Multiplatform UI для iOS, моделями, строками и platform abstraction.
+- `app` — Android-приложение на Jetpack Compose, Android widget, WorkManager, Android storage/network integration.
+- `iosApp` — Xcode-проект, который использует `shared` framework и содержит iOS app + WidgetKit extension.
+
+## Технологии
+
+- Kotlin Multiplatform
+- Compose Multiplatform
+- Jetpack Compose
+- WidgetKit
+- Jetpack Glance
 - WorkManager
-- Retrofit + OkHttp + kotlinx.serialization
-- AndroidX Security Crypto
+- Ktor / Darwin client
+- Retrofit + OkHttp
+- kotlinx.serialization
 - DataStore Preferences
+- AndroidX Security Crypto
 
 ## Лицензия
 
