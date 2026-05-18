@@ -429,6 +429,7 @@ private fun DoorDuckSharedScreen() {
                         onRefreshQr = { refreshQrNow() },
                         onRunWizard = { switchToWizard() },
                         onOpenTokensPage = { uriHandler.openUri(strings.tokensUrl) },
+                        onOpenGithubPage = { uriHandler.openUri(strings.githubUrl) },
                         onWidgetAction = { infoMessage = strings.widgetHelpMessage },
                     )
                 }
@@ -461,6 +462,7 @@ private fun DoorDuckSharedScreen() {
                             resetValidation()
                         },
                         onOpenTokensPage = { uriHandler.openUri(strings.tokensUrl) },
+                        onOpenGithubPage = { uriHandler.openUri(strings.githubUrl) },
                         onSave = {
                             saveLocalState(lastConnectionResult)
                             infoMessage = strings.infoSettingsSaved
@@ -623,6 +625,7 @@ private fun HomeDashboardScreen(
     onRefreshQr: () -> Unit,
     onRunWizard: () -> Unit,
     onOpenTokensPage: () -> Unit,
+    onOpenGithubPage: () -> Unit,
     onWidgetAction: () -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -660,7 +663,11 @@ private fun HomeDashboardScreen(
             onSave = onSave,
             onCheckConnection = onCheckConnection,
         )
-        DoorDuckHelpCard(strings = strings, onOpenTokensPage = onOpenTokensPage)
+        DoorDuckHelpCard(
+            strings = strings,
+            onOpenTokensPage = onOpenTokensPage,
+            onOpenGithubPage = onOpenGithubPage,
+        )
     }
 }
 
@@ -688,6 +695,7 @@ private fun SettingsDashboardScreen(
     onRefreshQr: () -> Unit,
     onRunWizard: () -> Unit,
     onOpenTokensPage: () -> Unit,
+    onOpenGithubPage: () -> Unit,
     onWidgetAction: () -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -709,7 +717,11 @@ private fun SettingsDashboardScreen(
         )
         DoorDuckWidgetCard(strings = strings, onWidgetAction = onWidgetAction)
         widgetInfoMessage?.let { InfoCard(message = it) }
-        DoorDuckHelpCard(strings = strings, onOpenTokensPage = onOpenTokensPage)
+        DoorDuckHelpCard(
+            strings = strings,
+            onOpenTokensPage = onOpenTokensPage,
+            onOpenGithubPage = onOpenGithubPage,
+        )
     }
 }
 

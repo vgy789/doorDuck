@@ -4,6 +4,7 @@
     <string name="widget_description">Виджет QR для входа в кампус</string>
     <string name="widget_hidden_description">Виджет QR скрыт до нажатия</string>
     <string name="rocket_tokens_url">https://rocketchat-student.21-school.ru/account/tokens</string>
+    <string name="github_url">https://github.com/vgy789/doorDuck</string>
 
     <string name="wizard_title">Мастер настройки doorDuck</string>
     <string name="wizard_welcome">Привет! Я doorDuck. Я поддерживаю рабочий QR-виджет входа в кампус на рабочем столе.</string>
@@ -39,6 +40,8 @@
     <string name="instruction_step_4">4. Нажми «Добавить» и скопируй созданные id и Token.</string>
     <string name="instruction_step_5">5. Не удаляй токен, doorDuck будет использовать его для обновления QR.</string>
     <string name="instruction_open_link">Открыть страницу токенов Rocket</string>
+    <string name="instruction_github_link">GitHub</string>
+    <string name="instruction_s21_login">s21 login: jonnabin</string>
 
     <string name="connection_ok">Соединение успешно проверено.</string>
     <string name="connection_unauthorized">Неверный token или user ID.</string>

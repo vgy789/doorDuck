@@ -685,6 +685,7 @@ private fun WidgetInstallCard() {
 private fun HelpCard() {
     val uriHandler = LocalUriHandler.current
     val url = stringResource(R.string.rocket_tokens_url)
+    val githubUrl = stringResource(R.string.github_url)
 
     DashboardCard {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -714,6 +715,23 @@ private fun HelpCard() {
                 Text(stringResource(R.string.instruction_open_link))
                 Box(modifier = Modifier.width(8.dp))
                 Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null)
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                TextButton(onClick = { uriHandler.openUri(githubUrl) }) {
+                    Text(
+                        text = stringResource(R.string.instruction_github_link),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+                Text(
+                    text = stringResource(R.string.instruction_s21_login),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
     }

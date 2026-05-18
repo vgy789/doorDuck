@@ -452,6 +452,7 @@ internal fun DoorDuckWidgetCard(
 internal fun DoorDuckHelpCard(
     strings: SharedStrings,
     onOpenTokensPage: () -> Unit,
+    onOpenGithubPage: () -> Unit,
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -475,6 +476,20 @@ internal fun DoorDuckHelpCard(
             Text(strings.instructionStep5, style = MaterialTheme.typography.bodySmall)
             TextButton(onClick = onOpenTokensPage) {
                 Text(strings.instructionOpenLink)
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                TextButton(onClick = onOpenGithubPage) {
+                    Text(strings.githubLinkLabel, style = MaterialTheme.typography.bodySmall)
+                }
+                Text(
+                    text = strings.githubOwnerLabel,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
     }
