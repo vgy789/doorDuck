@@ -35,3 +35,12 @@ google-services.json
 
 # MacOS Metadata 
 .DS_Store
+._*
+
+# Kotlin/Gradle local caches
+.kotlin/
+
+# Xcode user-specific files
+DerivedData/
+*.xcuserstate
+xcuserdata/

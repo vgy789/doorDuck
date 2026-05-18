@@ -67,12 +67,15 @@ private fun WidgetContent(uiState: WidgetUiState) {
                     uiState.snapshot.localImagePath.isNullOrBlank() -> {
                         if (uiState.snapshot.isSyncInProgress) {
                             Text(context.getString(R.string.widget_loading))
-                        } else if (uiState.snapshot.lastError != null) {
-                            Text("${context.getString(R.string.widget_error)}: ${uiState.snapshot.lastError.toDisplayString(context)}")
                         } else {
-                            Text(
-                                text = context.getString(R.string.widget_no_qr),
-                            )
+                            val lastError = uiState.snapshot.lastError
+                            if (lastError != null) {
+                                Text("${context.getString(R.string.widget_error)}: ${lastError.toDisplayString(context)}")
+                            } else {
+                                Text(
+                                    text = context.getString(R.string.widget_no_qr),
+                                )
+                            }
                         }
                     }
 
