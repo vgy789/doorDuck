@@ -8,9 +8,7 @@
 ![Compose Multiplatform](https://img.shields.io/badge/Compose-Multiplatform-4285F4)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](./LICENSE)
 
-`doorDuck` — мультиплатформенное приложение для School 21, которое получает QR для входа через Rocket.Chat API, сохраняет его локально и показывает:
-- в приложении на Android и iOS,
-- в Android и iOS виджете
+`doorDuck` — мультиплатформенное приложение для School 21, которое получает QR для входа через Rocket.Chat API, сохраняет его локально и показывает в приложении и виджете на Android / iOS.
 
 ## Скачать
 
