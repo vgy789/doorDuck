@@ -38,3 +38,4 @@ expect object DoorDuckPlatformServices {
 }
 
 expect fun formatEpochMillis(value: Long): String
+expect fun formatEpochDate(value: Long): String

@@ -28,7 +28,6 @@ data class MainUiState(
     val endpoint: String = Defaults.defaultEndpoint,
     val authToken: String = "",
     val userId: String = "",
-    val tokenVisible: Boolean = false,
     val hasStoredCredentials: Boolean = false,
     val qrImagePath: String? = null,
     val lastSuccessAtMs: Long? = null,
@@ -230,10 +229,6 @@ class MainViewModel(
                 lastConnectionCheckResult = null,
             )
         }
-    }
-
-    fun toggleTokenVisibility() {
-        _uiState.update { it.copy(tokenVisible = !it.tokenVisible) }
     }
 
     fun checkConnection() {
