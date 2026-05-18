@@ -22,6 +22,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -37,8 +38,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.isSystemInDarkTheme
 import io.github.vgy789.doorDuck.model.ConnectionCheckResult
 import io.github.vgy789.doorDuck.model.Credentials
 import io.github.vgy789.doorDuck.model.Defaults
@@ -60,14 +61,31 @@ private enum class ScreenMode {
 
 @Composable
 fun DoorDuckSharedApp() {
+    val dark = isSystemInDarkTheme()
     MaterialTheme(
-        colorScheme = lightColorScheme(
-            primary = Color(0xFF0B5FFF),
-            secondary = Color(0xFFFF7A00),
-            tertiary = Color(0xFF00796B),
-            background = Color(0xFFF4F7FB),
-            surface = Color(0xFFFFFFFF),
-        ),
+        colorScheme = if (dark) {
+            darkColorScheme(
+                primary = Color(0xFFF2C64D),
+                secondary = Color(0xFFE88C3A),
+                tertiary = Color(0xFF8FD6A0),
+                background = Color(0xFF17130F),
+                surface = Color(0xFF231C15),
+                onPrimary = Color(0xFF2D220F),
+                onSurface = Color(0xFFF9F0E1),
+                onSurfaceVariant = Color(0xFFD4C5AF),
+            )
+        } else {
+            lightColorScheme(
+                primary = Color(0xFFE0A81D),
+                secondary = Color(0xFFE88C3A),
+                tertiary = Color(0xFF5DAE77),
+                background = Color(0xFFFFFBF3),
+                surface = Color(0xFFFFFEFB),
+                onPrimary = Color(0xFF33260F),
+                onSurface = Color(0xFF2D2418),
+                onSurfaceVariant = Color(0xFF6F5E47),
+            )
+        },
     ) {
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             DoorDuckSharedScreen()
@@ -87,7 +105,6 @@ private fun DoorDuckSharedScreen() {
     var endpoint by remember { mutableStateOf(Defaults.defaultEndpoint) }
     var userId by remember { mutableStateOf("") }
     var token by remember { mutableStateOf("") }
-    var tokenVisible by remember { mutableStateOf(false) }
     var hasStoredCredentials by remember { mutableStateOf(false) }
     var isCheckingConnection by remember { mutableStateOf(false) }
     var isRefreshingQr by remember { mutableStateOf(false) }
@@ -98,6 +115,7 @@ private fun DoorDuckSharedScreen() {
     var lastSyncError by remember { mutableStateOf<SyncError?>(null) }
     var qrImageBase64 by remember { mutableStateOf<String?>(null) }
     var infoMessage by remember { mutableStateOf<String?>(null) }
+    var connectionExpanded by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         val stored = DoorDuckPlatformServices.loadPersistedState()
@@ -114,6 +132,7 @@ private fun DoorDuckSharedScreen() {
             hasStoredCredentials = stored.userId.isNotBlank() && stored.authToken.isNotBlank()
             screenMode = if (hasStoredCredentials) ScreenMode.HOME else ScreenMode.WIZARD
             wizardStep = if (hasStoredCredentials) WizardStep.DONE else WizardStep.WELCOME
+            connectionExpanded = false
         }
         initialized = true
     }
@@ -253,18 +272,21 @@ private fun DoorDuckSharedScreen() {
     fun switchToHome(message: String? = null) {
         screenMode = ScreenMode.HOME
         wizardStep = WizardStep.DONE
+        connectionExpanded = false
         infoMessage = message
     }
 
     fun switchToSettings(message: String? = null) {
         screenMode = ScreenMode.SETTINGS
         wizardStep = WizardStep.DONE
+        connectionExpanded = true
         infoMessage = message
     }
 
     fun switchToWizard() {
         screenMode = ScreenMode.WIZARD
         wizardStep = WizardStep.WELCOME
+        connectionExpanded = false
         infoMessage = null
     }
 
@@ -272,17 +294,25 @@ private fun DoorDuckSharedScreen() {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(Color(0xFFEAF2FF), Color(0xFFF4F7FB)),
-                    ),
-                )
+                .background(doorDuckBackgroundBrush())
                 .padding(paddingValues)
                 .padding(20.dp)
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            HeroCard(strings = strings)
+            DoorDuckHeader(
+                strings = strings,
+                actionLabel = when (screenMode) {
+                    ScreenMode.HOME -> strings.actionRunWizard
+                    ScreenMode.SETTINGS -> strings.actionBackToHome
+                    ScreenMode.WIZARD -> if (hasStoredCredentials) strings.actionBackToHome else null
+                },
+                onAction = when (screenMode) {
+                    ScreenMode.HOME -> ({ switchToWizard() })
+                    ScreenMode.SETTINGS -> ({ switchToHome() })
+                    ScreenMode.WIZARD -> if (hasStoredCredentials) ({ switchToHome() }) else null
+                },
+            )
 
             when (screenMode) {
                 ScreenMode.WIZARD -> {
@@ -292,7 +322,6 @@ private fun DoorDuckSharedScreen() {
                         endpoint = endpoint,
                         userId = userId,
                         token = token,
-                        tokenVisible = tokenVisible,
                         isCheckingConnection = isCheckingConnection,
                         onEndpointChange = {
                             endpoint = InputSanitizer.endpoint(it)
@@ -306,7 +335,6 @@ private fun DoorDuckSharedScreen() {
                             token = InputSanitizer.noWhitespace(it)
                             resetValidation()
                         },
-                        onToggleTokenVisibility = { tokenVisible = !tokenVisible },
                         onOpenTokensPage = { uriHandler.openUri(strings.tokensUrl) },
                         onCheckConnection = {
                             runCheckConnection {
@@ -362,31 +390,11 @@ private fun DoorDuckSharedScreen() {
                 }
 
                 ScreenMode.HOME -> {
-                    HomeCard(
-                        strings = strings,
-                        endpoint = endpoint,
-                        userId = userId,
-                        hasStoredCredentials = hasStoredCredentials,
-                        lastSuccessAtMs = lastSuccessAtMs,
-                        expiresAtMs = expiresAtMs,
-                        lastConnectionResult = lastConnectionResult,
-                        lastSyncError = lastSyncError,
-                        qrImageBase64 = qrImageBase64,
-                        isRefreshingQr = isRefreshingQr,
-                        onRefreshQr = { refreshQrNow() },
-                        onOpenSettings = { switchToSettings() },
-                        onRunWizard = { switchToWizard() },
-                    )
-                }
-
-                ScreenMode.SETTINGS -> {
-                    SettingsCard(
+                    HomeDashboardScreen(
                         strings = strings,
                         endpoint = endpoint,
                         userId = userId,
                         token = token,
-                        tokenVisible = tokenVisible,
-                        hasStoredCredentials = hasStoredCredentials,
                         lastSuccessAtMs = lastSuccessAtMs,
                         expiresAtMs = expiresAtMs,
                         lastConnectionResult = lastConnectionResult,
@@ -394,6 +402,8 @@ private fun DoorDuckSharedScreen() {
                         qrImageBase64 = qrImageBase64,
                         isCheckingConnection = isCheckingConnection,
                         isRefreshingQr = isRefreshingQr,
+                        connectionExpanded = connectionExpanded,
+                        onToggleConnectionExpanded = { connectionExpanded = !connectionExpanded },
                         onEndpointChange = {
                             endpoint = InputSanitizer.endpoint(it)
                             resetValidation()
@@ -406,7 +416,50 @@ private fun DoorDuckSharedScreen() {
                             token = InputSanitizer.noWhitespace(it)
                             resetValidation()
                         },
-                        onToggleTokenVisibility = { tokenVisible = !tokenVisible },
+                        onSave = {
+                            saveLocalState(lastConnectionResult)
+                            infoMessage = strings.infoSettingsSaved
+                        },
+                        onCheckConnection = {
+                            runCheckConnection {
+                                infoMessage = strings.infoSettingsSaved
+                            }
+                        },
+                        widgetInfoMessage = infoMessage.takeIf { it == strings.widgetHelpMessage },
+                        onRefreshQr = { refreshQrNow() },
+                        onRunWizard = { switchToWizard() },
+                        onOpenTokensPage = { uriHandler.openUri(strings.tokensUrl) },
+                        onWidgetAction = { infoMessage = strings.widgetHelpMessage },
+                    )
+                }
+
+                ScreenMode.SETTINGS -> {
+                    SettingsDashboardScreen(
+                        strings = strings,
+                        endpoint = endpoint,
+                        userId = userId,
+                        token = token,
+                        lastSuccessAtMs = lastSuccessAtMs,
+                        expiresAtMs = expiresAtMs,
+                        lastConnectionResult = lastConnectionResult,
+                        lastSyncError = lastSyncError,
+                        qrImageBase64 = qrImageBase64,
+                        isCheckingConnection = isCheckingConnection,
+                        isRefreshingQr = isRefreshingQr,
+                        connectionExpanded = connectionExpanded,
+                        onToggleConnectionExpanded = { connectionExpanded = !connectionExpanded },
+                        onEndpointChange = {
+                            endpoint = InputSanitizer.endpoint(it)
+                            resetValidation()
+                        },
+                        onUserIdChange = {
+                            userId = InputSanitizer.noWhitespace(it)
+                            resetValidation()
+                        },
+                        onTokenChange = {
+                            token = InputSanitizer.noWhitespace(it)
+                            resetValidation()
+                        },
                         onOpenTokensPage = { uriHandler.openUri(strings.tokensUrl) },
                         onSave = {
                             saveLocalState(lastConnectionResult)
@@ -417,28 +470,17 @@ private fun DoorDuckSharedScreen() {
                                 infoMessage = strings.infoSettingsSaved
                             }
                         },
+                        widgetInfoMessage = infoMessage.takeIf { it == strings.widgetHelpMessage },
                         onRefreshQr = { refreshQrNow() },
-                        onBackToHome = { switchToHome() },
                         onRunWizard = { switchToWizard() },
-                        onClear = {
-                            endpoint = Defaults.defaultEndpoint
-                            userId = ""
-                            token = ""
-                            hasStoredCredentials = false
-                            lastSuccessAtMs = null
-                            expiresAtMs = null
-                            lastConnectionResult = null
-                            lastSyncError = null
-                            qrImageBase64 = null
-                            connectionCheckPassed = false
-                            scope.launch { DoorDuckPlatformServices.clearPersistedState() }
-                            switchToWizard()
-                        },
+                        onWidgetAction = { infoMessage = strings.widgetHelpMessage },
                     )
                 }
             }
 
-            infoMessage?.let { InfoCard(message = it) }
+            infoMessage
+                ?.takeUnless { it == strings.widgetHelpMessage }
+                ?.let { InfoCard(message = it) }
         }
     }
 }
@@ -491,12 +533,10 @@ private fun WizardCard(
     endpoint: String,
     userId: String,
     token: String,
-    tokenVisible: Boolean,
     isCheckingConnection: Boolean,
     onEndpointChange: (String) -> Unit,
     onUserIdChange: (String) -> Unit,
     onTokenChange: (String) -> Unit,
-    onToggleTokenVisibility: () -> Unit,
     onOpenTokensPage: () -> Unit,
     onCheckConnection: () -> Unit,
 ) {
@@ -532,12 +572,7 @@ private fun WizardCard(
                         modifier = Modifier.fillMaxWidth(),
                         label = { Text(strings.tokenLabel) },
                         singleLine = true,
-                        visualTransformation = if (tokenVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                        trailingIcon = {
-                            TextButton(onClick = onToggleTokenVisibility) {
-                                Text(if (tokenVisible) strings.actionHideToken else strings.actionShowToken)
-                            }
-                        },
+                        visualTransformation = PasswordVisualTransformation(),
                     )
                 }
 
@@ -565,12 +600,125 @@ private fun WizardCard(
 }
 
 @Composable
+private fun HomeDashboardScreen(
+    strings: SharedStrings,
+    endpoint: String,
+    userId: String,
+    token: String,
+    lastSuccessAtMs: Long?,
+    expiresAtMs: Long?,
+    lastConnectionResult: ConnectionCheckResult?,
+    lastSyncError: SyncError?,
+    qrImageBase64: String?,
+    isCheckingConnection: Boolean,
+    isRefreshingQr: Boolean,
+    connectionExpanded: Boolean,
+    onToggleConnectionExpanded: () -> Unit,
+    onEndpointChange: (String) -> Unit,
+    onUserIdChange: (String) -> Unit,
+    onTokenChange: (String) -> Unit,
+    onSave: () -> Unit,
+    onCheckConnection: () -> Unit,
+    widgetInfoMessage: String?,
+    onRefreshQr: () -> Unit,
+    onRunWizard: () -> Unit,
+    onOpenTokensPage: () -> Unit,
+    onWidgetAction: () -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        DoorDuckStatusCard(
+            strings = strings,
+            lastSuccessAtMs = lastSuccessAtMs,
+            expiresAtMs = expiresAtMs,
+            lastConnectionResult = lastConnectionResult,
+            lastSyncError = lastSyncError,
+            qrImageBase64 = qrImageBase64,
+            isRefreshingQr = isRefreshingQr,
+        )
+        DoorDuckQrCard(
+            strings = strings,
+            qrImageBase64 = qrImageBase64,
+            isRefreshingQr = isRefreshingQr,
+            onRefreshQr = onRefreshQr,
+            onRunWizard = onRunWizard,
+        )
+        DoorDuckWidgetCard(strings = strings, onWidgetAction = onWidgetAction)
+        widgetInfoMessage?.let { InfoCard(message = it) }
+        DoorDuckConnectionCard(
+            strings = strings,
+            expanded = true,
+            showExpandToggle = false,
+            endpoint = endpoint,
+            userId = userId,
+            token = token,
+            isCheckingConnection = isCheckingConnection,
+            lastConnectionResult = lastConnectionResult,
+            onExpandedChange = onToggleConnectionExpanded,
+            onEndpointChange = onEndpointChange,
+            onUserIdChange = onUserIdChange,
+            onTokenChange = onTokenChange,
+            onSave = onSave,
+            onCheckConnection = onCheckConnection,
+        )
+        DoorDuckHelpCard(strings = strings, onOpenTokensPage = onOpenTokensPage)
+    }
+}
+
+@Composable
+private fun SettingsDashboardScreen(
+    strings: SharedStrings,
+    endpoint: String,
+    userId: String,
+    token: String,
+    lastSuccessAtMs: Long?,
+    expiresAtMs: Long?,
+    lastConnectionResult: ConnectionCheckResult?,
+    lastSyncError: SyncError?,
+    qrImageBase64: String?,
+    isCheckingConnection: Boolean,
+    isRefreshingQr: Boolean,
+    connectionExpanded: Boolean,
+    onToggleConnectionExpanded: () -> Unit,
+    onEndpointChange: (String) -> Unit,
+    onUserIdChange: (String) -> Unit,
+    onTokenChange: (String) -> Unit,
+    onSave: () -> Unit,
+    onCheckConnection: () -> Unit,
+    widgetInfoMessage: String?,
+    onRefreshQr: () -> Unit,
+    onRunWizard: () -> Unit,
+    onOpenTokensPage: () -> Unit,
+    onWidgetAction: () -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        DoorDuckConnectionCard(
+            strings = strings,
+            expanded = true,
+            showExpandToggle = false,
+            endpoint = endpoint,
+            userId = userId,
+            token = token,
+            isCheckingConnection = isCheckingConnection,
+            lastConnectionResult = lastConnectionResult,
+            onExpandedChange = onToggleConnectionExpanded,
+            onEndpointChange = onEndpointChange,
+            onUserIdChange = onUserIdChange,
+            onTokenChange = onTokenChange,
+            onSave = onSave,
+            onCheckConnection = onCheckConnection,
+        )
+        DoorDuckWidgetCard(strings = strings, onWidgetAction = onWidgetAction)
+        widgetInfoMessage?.let { InfoCard(message = it) }
+        DoorDuckHelpCard(strings = strings, onOpenTokensPage = onOpenTokensPage)
+    }
+}
+
+@Composable
 private fun SettingsCard(
     strings: SharedStrings,
     endpoint: String,
     userId: String,
     token: String,
-    tokenVisible: Boolean,
     hasStoredCredentials: Boolean,
     lastSuccessAtMs: Long?,
     expiresAtMs: Long?,
@@ -582,7 +730,6 @@ private fun SettingsCard(
     onEndpointChange: (String) -> Unit,
     onUserIdChange: (String) -> Unit,
     onTokenChange: (String) -> Unit,
-    onToggleTokenVisibility: () -> Unit,
     onOpenTokensPage: () -> Unit,
     onSave: () -> Unit,
     onCheckConnection: () -> Unit,
@@ -619,12 +766,7 @@ private fun SettingsCard(
                 modifier = Modifier.fillMaxWidth(),
                 label = { Text(strings.tokenLabel) },
                 singleLine = true,
-                visualTransformation = if (tokenVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                trailingIcon = {
-                    TextButton(onClick = onToggleTokenVisibility) {
-                        Text(if (tokenVisible) strings.actionHideToken else strings.actionShowToken)
-                    }
-                },
+                visualTransformation = PasswordVisualTransformation(),
             )
 
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -833,11 +975,5 @@ private fun CopyBlock(
 
 @Composable
 private fun InfoCard(message: String) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Text(
-            text = message,
-            modifier = Modifier.padding(16.dp),
-            style = MaterialTheme.typography.bodyMedium,
-        )
-    }
+    DoorDuckInfoBanner(message = message)
 }

@@ -227,6 +227,14 @@ actual fun formatEpochMillis(value: Long): String {
     )
 }
 
+actual fun formatEpochDate(value: Long): String {
+    val formatter = NSDateFormatter()
+    formatter.setDateFormat("dd.MM.yyyy")
+    return formatter.stringFromDate(
+        NSDate(timeIntervalSinceReferenceDate = (value.toDouble() / 1000.0) - APPLE_REFERENCE_EPOCH_SECONDS),
+    )
+}
+
 private data class HttpPayload(
     val statusCode: Int,
     val body: String,
@@ -421,7 +429,7 @@ private fun saveOptionalString(
 }
 
 private fun sharedDefaults(): NSUserDefaults {
-    return NSUserDefaults(suiteName = APP_GROUP_ID) ?: NSUserDefaults.standardUserDefaults
+    return NSUserDefaults(suiteName = APP_GROUP_ID)
 }
 
 private class SyncFailure(val error: SyncError) : RuntimeException()

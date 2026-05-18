@@ -44,3 +44,7 @@ actual object DoorDuckPlatformServices {
 actual fun formatEpochMillis(value: Long): String {
     return DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(value))
 }
+
+actual fun formatEpochDate(value: Long): String {
+    return DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(value))
+}

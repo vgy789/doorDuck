@@ -1,17 +1,18 @@
 <resources>
     <string name="app_name">doorDuck</string>
+    <string name="dashboard_subtitle">Rocket.Chat QR Sync</string>
     <string name="widget_description">QR widget for building access</string>
     <string name="widget_hidden_description">QR widget hidden until tap</string>
     <string name="rocket_tokens_url">https://rocketchat-student.21-school.ru/account/tokens</string>
 
-    <string name="wizard_title">DoorDuck Init Wizard</string>
-    <string name="wizard_welcome">Hi! I am DoorDuck. I keep your campus QR widget active on the home screen.</string>
+    <string name="wizard_title">doorDuck Init Wizard</string>
+    <string name="wizard_welcome">Hi! I am doorDuck. I keep your campus QR widget active on the home screen.</string>
     <string name="wizard_user_id_hint">Enter your Rocket.Chat user ID.</string>
     <string name="wizard_token_hint">Enter your X-Auth-Token.</string>
     <string name="wizard_check_hint">Check connection with Rocket.Chat before finishing setup.</string>
     <string name="wizard_done">Setup completed.</string>
 
-    <string name="settings_title">DoorDuck Settings</string>
+    <string name="settings_title">doorDuck Settings</string>
     <string name="endpoint_label">Rocket.Chat API endpoint</string>
     <string name="token_label">X-Auth-Token</string>
     <string name="user_id_label">Rocket.Chat user ID</string>
@@ -36,7 +37,7 @@
     <string name="instruction_step_2">2. Enter any token name.</string>
     <string name="instruction_step_3">3. In dropdown next to Add button choose \"Ignore Two-Factor Authentication\".</string>
     <string name="instruction_step_4">4. Click Add and copy generated id and Token.</string>
-    <string name="instruction_step_5">5. Do not delete the token, DoorDuck will use it for QR updates.</string>
+    <string name="instruction_step_5">5. Do not delete the token, doorDuck will use it for QR updates.</string>
     <string name="instruction_open_link">Open Rocket tokens page</string>
 
     <string name="connection_ok">Connection successful.</string>
@@ -55,6 +56,13 @@
     <string name="info_wizard_done">Wizard completed, settings are active.</string>
     <string name="toast_qr_refreshed">QR code updated.</string>
     <string name="toast_qr_refresh_failed">QR update failed.</string>
+    <string name="status_qr_fresh">QR is active</string>
+    <string name="status_qr_refreshing">Refreshing QR</string>
+    <string name="status_qr_needs_attention">Sync attention required</string>
+    <string name="status_qr_missing">QR has not been loaded</string>
+    <string name="connection_section_title">Connection</string>
+    <string name="connection_section_hint">Manage endpoint, user ID, and token here.</string>
+    <string name="token_help_body">Open the Rocket.Chat tokens page and create the required credentials.</string>
 
     <string name="status_title">Status</string>
     <string name="status_in_progress">In progress: %1$s</string>
@@ -72,7 +80,7 @@
     <string name="sync_error_unknown">unknown error</string>
 
     <string name="widget_install_title">Add widget to home screen</string>
-    <string name="widget_install_hint">You can add the doorDuck widget from here, or manually via your launcher.</string>
+    <string name="widget_install_hint">You can add the widget from here, or manually via your launcher.</string>
     <string name="widget_install_action">Add widget</string>
     <string name="widget_install_step_1">1. Common way: long-press empty space on home screen → Widgets.</string>
     <string name="widget_install_step_2">2. If your firmware blocks this gesture, open app search/menu and find the Widgets section.</string>
@@ -81,7 +89,7 @@
     <string name="widget_pin_not_supported">Automatic widget pin is not supported on this launcher. Add it manually.</string>
     <string name="widget_pin_failed">Could not open widget pin dialog. Add widget manually from launcher widgets list.</string>
 
-    <string name="widget_not_configured">Open DoorDuck app and configure endpoint/token/user ID.</string>
+    <string name="widget_not_configured">Open doorDuck app and configure endpoint/token/user ID.</string>
     <string name="widget_loading">Updating QR code…</string>
     <string name="widget_error">Last update failed</string>
     <string name="widget_hidden_tap_to_show">QR hidden. Tap widget to show.</string>
