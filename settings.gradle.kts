@@ -24,3 +24,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "doorDuck"
 include(":app")
+include(":shared")

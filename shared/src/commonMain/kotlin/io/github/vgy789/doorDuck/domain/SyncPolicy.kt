@@ -1,6 +1,7 @@
 package io.github.vgy789.doorDuck.domain
 
 import io.github.vgy789.doorDuck.model.Defaults
+import io.github.vgy789.doorDuck.platform.currentTimeMillis
 
 object SyncPolicy {
     private const val dayInMs = 24L * 60L * 60L * 1000L
@@ -17,7 +18,7 @@ object SyncPolicy {
     fun shouldRefreshNow(
         localImagePath: String?,
         expiresAtMs: Long?,
-        nowMs: Long = System.currentTimeMillis(),
+        nowMs: Long = currentTimeMillis(),
     ): Boolean {
         if (localImagePath.isNullOrBlank()) return true
         if (expiresAtMs == null) return true
@@ -26,7 +27,7 @@ object SyncPolicy {
 
     fun isExpired(
         expiresAtMs: Long?,
-        nowMs: Long = System.currentTimeMillis(),
+        nowMs: Long = currentTimeMillis(),
     ): Boolean {
         return expiresAtMs != null && nowMs >= expiresAtMs
     }
