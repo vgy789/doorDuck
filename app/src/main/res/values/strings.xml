@@ -41,7 +41,7 @@
     <string name="instruction_step_5">5. Do not delete the token, doorDuck will use it for QR updates.</string>
     <string name="instruction_open_link">Open Rocket tokens page</string>
     <string name="instruction_github_link">GitHub</string>
-    <string name="instruction_s21_login">s21 login: jonnabin</string>
+    <string name="instruction_s21_login">Author: jonnabin</string>
 
     <string name="connection_ok">Connection successful.</string>
     <string name="connection_unauthorized">Invalid token or user ID.</string>
