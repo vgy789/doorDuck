@@ -103,13 +103,6 @@ private fun WidgetContent(uiState: WidgetUiState) {
                         }
                     }
                 }
-
-                uiState.snapshot.lastError?.let { error ->
-                    if (error != SyncError.UNKNOWN) {
-                        Text(context.getString(R.string.widget_last_error, error.toDisplayString(context)))
-                    }
-                }
-
             }
         }
     }
