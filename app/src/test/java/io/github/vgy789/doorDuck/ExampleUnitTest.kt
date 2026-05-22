@@ -75,9 +75,45 @@ class ExampleUnitTest {
     }
 
     @Test
-    fun expiresAt_addsThirtyDays() {
-        val start = 100_000L
-        val expected = start + 30L * 24L * 60L * 60L * 1000L
-        assertEquals(expected, SyncPolicy.expiresAtMs(start))
+    fun auto_refresh_waits_for_explicit_expire_and_retry_window() {
+        assertFalse(
+            SyncPolicy.shouldRefreshNow(
+                autoRefreshEnabled = true,
+                localImagePath = "/tmp/qr.png",
+                expiresAtMs = null,
+                nextAutoRefreshAtMs = null,
+                nowMs = 1_000L,
+            ),
+        )
+
+        assertFalse(
+            SyncPolicy.shouldRefreshNow(
+                autoRefreshEnabled = true,
+                localImagePath = "/tmp/qr.png",
+                expiresAtMs = 1_000L,
+                nextAutoRefreshAtMs = 2_000L,
+                nowMs = 1_500L,
+            ),
+        )
+
+        assertTrue(
+            SyncPolicy.shouldRefreshNow(
+                autoRefreshEnabled = true,
+                localImagePath = "/tmp/qr.png",
+                expiresAtMs = 1_000L,
+                nextAutoRefreshAtMs = 2_000L,
+                nowMs = 2_000L,
+            ),
+        )
+
+        assertFalse(
+            SyncPolicy.shouldRefreshNow(
+                autoRefreshEnabled = false,
+                localImagePath = "/tmp/qr.png",
+                expiresAtMs = 1_000L,
+                nextAutoRefreshAtMs = 1_000L,
+                nowMs = 2_000L,
+            ),
+        )
     }
 }

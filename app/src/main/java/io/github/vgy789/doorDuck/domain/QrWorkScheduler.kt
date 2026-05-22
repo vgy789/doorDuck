@@ -1,7 +1,6 @@
 package io.github.vgy789.doorDuck.domain
 
 import android.content.Context
-import androidx.work.BackoffPolicy
 import androidx.work.Constraints
 import androidx.work.Data
 import androidx.work.ExistingPeriodicWorkPolicy
@@ -17,12 +16,29 @@ class QrWorkScheduler(context: Context) {
     private val workManager = WorkManager.getInstance(context)
 
     fun scheduleRefreshAtExpiration(expiresAtMs: Long) {
-        val nowMs = System.currentTimeMillis()
-        val delayMs = (SyncPolicy.refreshAtMs(expiresAtMs) - nowMs).coerceAtLeast(0L)
+        val delayMs = (SyncPolicy.refreshAtMs(expiresAtMs) - System.currentTimeMillis()).coerceAtLeast(0L)
+        enqueueAutomaticRefresh(delayMs = delayMs, attempt = 0)
+    }
+
+    fun scheduleAutomaticRetry(retryAtMs: Long, attempt: Int) {
+        val delayMs = (retryAtMs - System.currentTimeMillis()).coerceAtLeast(0L)
+        enqueueAutomaticRefresh(delayMs = delayMs, attempt = attempt)
+    }
+
+    fun cancelAutomaticRefresh() {
+        workManager.cancelUniqueWork(EXPIRY_WORK_NAME)
+    }
+
+    fun enqueueAutomaticRefresh(delayMs: Long, attempt: Int) {
         val oneTime = OneTimeWorkRequestBuilder<QrRefreshWorker>()
+            .setInputData(
+                Data.Builder()
+                    .putBoolean(QrRefreshWorker.KEY_REFRESH_ONLY_IF_DUE, true)
+                    .putInt(QrRefreshWorker.KEY_AUTO_RETRY_ATTEMPT, attempt)
+                    .build(),
+            )
             .setInitialDelay(delayMs, TimeUnit.MILLISECONDS)
             .setConstraints(defaultConstraints())
-            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.MINUTES)
             .build()
         workManager.enqueueUniqueWork(
             EXPIRY_WORK_NAME,
@@ -39,11 +55,10 @@ class QrWorkScheduler(context: Context) {
                     .build(),
             )
             .setConstraints(defaultConstraints())
-            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.MINUTES)
             .build()
         workManager.enqueueUniqueWork(
             MANUAL_WORK_NAME,
-            ExistingWorkPolicy.REPLACE,
+            ExistingWorkPolicy.KEEP,
             oneTime,
         )
     }
@@ -56,7 +71,6 @@ class QrWorkScheduler(context: Context) {
                     .build(),
             )
             .setConstraints(defaultConstraints())
-            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.MINUTES)
             .build()
         workManager.enqueueUniquePeriodicWork(
             WATCHDOG_WORK_NAME,

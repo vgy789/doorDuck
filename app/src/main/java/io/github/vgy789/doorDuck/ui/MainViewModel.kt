@@ -16,6 +16,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.text.DateFormat
+import java.util.Date
 
 enum class ScreenMode {
     WIZARD,
@@ -29,9 +31,11 @@ data class MainUiState(
     val authToken: String = "",
     val userId: String = "",
     val hasStoredCredentials: Boolean = false,
+    val autoRefreshEnabled: Boolean = true,
     val qrImagePath: String? = null,
     val lastSuccessAtMs: Long? = null,
     val expiresAtMs: Long? = null,
+    val nextAutoRefreshAtMs: Long? = null,
     val syncInProgress: Boolean = false,
     val isConnectionCheckInProgress: Boolean = false,
     val lastConnectionCheckResult: ConnectionCheckResult? = null,
@@ -56,16 +60,19 @@ class MainViewModel(
                 .collect { state ->
                     if (
                         state.hasCredentials &&
+                        state.settings.autoRefreshEnabled &&
                         !state.snapshot.isSyncInProgress &&
                         !dueRefreshQueued &&
                         SyncPolicy.shouldRefreshNow(
+                            autoRefreshEnabled = state.settings.autoRefreshEnabled,
                             localImagePath = state.snapshot.localImagePath,
                             expiresAtMs = state.snapshot.expiresAtMs,
+                            nextAutoRefreshAtMs = state.snapshot.nextAutoRefreshAtMs,
                         )
                     ) {
                         dueRefreshQueued = true
                         appContainer.settingsStore.setSyncInProgress(true)
-                        appContainer.workScheduler.enqueueManualRefresh()
+                        appContainer.workScheduler.enqueueAutomaticRefresh(delayMs = 0L, attempt = 0)
                         appContainer.widgetUpdateCoordinator.forceWidgetUpdateNow()
                     }
                     val stored = appContainer.credentialsStore.load()
@@ -77,9 +84,11 @@ class MainViewModel(
                                 current.endpoint
                             },
                             hasStoredCredentials = state.hasCredentials,
+                            autoRefreshEnabled = state.settings.autoRefreshEnabled,
                             qrImagePath = state.snapshot.localImagePath,
                             lastSuccessAtMs = state.snapshot.lastSuccessAtMs,
                             expiresAtMs = state.snapshot.expiresAtMs,
+                            nextAutoRefreshAtMs = state.snapshot.nextAutoRefreshAtMs,
                             syncInProgress = state.snapshot.isSyncInProgress,
                             lastError = state.snapshot.lastError,
                         )
@@ -277,10 +286,66 @@ class MainViewModel(
 
     fun refreshNow() {
         viewModelScope.launch {
+            val state = uiState.value
+            if (state.syncInProgress) return@launch
+            val nextAutoRefreshAtMs = state.nextAutoRefreshAtMs
+            if (
+                state.lastError == SyncError.RATE_LIMITED &&
+                nextAutoRefreshAtMs != null &&
+                nextAutoRefreshAtMs > System.currentTimeMillis()
+            ) {
+                _uiState.update {
+                    it.copy(
+                        infoMessage = appContainer.appContext.getString(
+                            R.string.info_refresh_deferred_until,
+                            DateFormat.getDateTimeInstance().format(Date(nextAutoRefreshAtMs)),
+                        ),
+                    )
+                }
+                return@launch
+            }
             appContainer.settingsStore.setSyncInProgress(true)
             appContainer.workScheduler.enqueueManualRefresh()
             appContainer.widgetUpdateCoordinator.forceWidgetUpdateNow()
             setInfo(R.string.info_refresh_queued)
+        }
+    }
+
+    fun setAutoRefreshEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            appContainer.settingsStore.setAutoRefreshEnabled(enabled)
+            if (!enabled) {
+                appContainer.settingsStore.setNextAutoRefreshAt(null)
+                appContainer.workScheduler.cancelAutomaticRefresh()
+            } else {
+                val snapshot = appContainer.settingsStore.getSnapshot()
+                val expiresAtMs = snapshot.expiresAtMs
+                if (expiresAtMs != null) {
+                    val nextAutoRefreshAtMs = snapshot.nextAutoRefreshAtMs
+                        ?: SyncPolicy.refreshAtMs(expiresAtMs)
+                    appContainer.settingsStore.setNextAutoRefreshAt(nextAutoRefreshAtMs)
+                    if (SyncPolicy.shouldRefreshNow(
+                            autoRefreshEnabled = true,
+                            localImagePath = snapshot.localImagePath,
+                            expiresAtMs = expiresAtMs,
+                            nextAutoRefreshAtMs = nextAutoRefreshAtMs,
+                        )
+                    ) {
+                        appContainer.workScheduler.enqueueAutomaticRefresh(delayMs = 0L, attempt = 0)
+                    } else {
+                        appContainer.workScheduler.scheduleAutomaticRetry(
+                            retryAtMs = nextAutoRefreshAtMs,
+                            attempt = 0,
+                        )
+                    }
+                }
+            }
+            _uiState.update {
+                it.copy(
+                    autoRefreshEnabled = enabled,
+                    nextAutoRefreshAtMs = if (enabled) it.nextAutoRefreshAtMs else null,
+                )
+            }
         }
     }
 
@@ -319,7 +384,8 @@ class MainViewModel(
         val normalizedEndpoint = InputSanitizer.endpoint(endpoint)
         val normalizedToken = InputSanitizer.noWhitespace(token)
         val normalizedUserId = InputSanitizer.noWhitespace(userId)
-        appContainer.settingsStore.updateCredentialsSettings(normalizedEndpoint)
+        val autoRefreshEnabled = uiState.value.autoRefreshEnabled
+        appContainer.settingsStore.updateCredentialsSettings(normalizedEndpoint, autoRefreshEnabled)
         appContainer.credentialsStore.save(normalizedToken, normalizedUserId)
         appContainer.widgetUpdateCoordinator.forceWidgetUpdateNow()
         _uiState.update {
@@ -328,6 +394,7 @@ class MainViewModel(
                 authToken = normalizedToken,
                 userId = normalizedUserId,
                 hasStoredCredentials = true,
+                autoRefreshEnabled = autoRefreshEnabled,
             )
         }
     }

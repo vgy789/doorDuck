@@ -360,6 +360,7 @@ private fun StatusCard(state: MainUiState) {
     val hasActiveQr = state.qrImagePath != null && !SyncPolicy.isExpired(state.expiresAtMs)
     val headline = when {
         state.syncInProgress -> stringResource(R.string.status_qr_refreshing)
+        state.lastError == SyncError.RATE_LIMITED && hasActiveQr -> stringResource(R.string.status_qr_fresh)
         state.lastError != null -> stringResource(R.string.status_qr_needs_attention)
         hasActiveQr -> stringResource(R.string.status_qr_fresh)
         else -> stringResource(R.string.status_qr_missing)
@@ -459,6 +460,7 @@ private fun QrCard(
 
             Button(
                 onClick = onRefresh,
+                enabled = !state.syncInProgress,
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(18.dp),
                 colors = ButtonDefaults.buttonColors(
@@ -847,6 +849,7 @@ private fun SyncError.toDisplayString(): String {
     return when (this) {
         SyncError.NOT_CONFIGURED -> stringResource(R.string.sync_error_not_configured)
         SyncError.UNAUTHORIZED -> stringResource(R.string.sync_error_unauthorized)
+        SyncError.RATE_LIMITED -> stringResource(R.string.sync_error_rate_limited)
         SyncError.NETWORK -> stringResource(R.string.sync_error_network)
         SyncError.BOT_RESPONSE_INVALID -> stringResource(R.string.sync_error_bot_response_invalid)
         SyncError.IMAGE_DOWNLOAD_FAILED -> stringResource(R.string.sync_error_image_download_failed)

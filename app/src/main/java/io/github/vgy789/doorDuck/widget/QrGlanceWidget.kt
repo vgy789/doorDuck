@@ -125,6 +125,7 @@ private fun SyncError.toDisplayString(context: android.content.Context): String 
     val resId = when (this) {
         SyncError.NOT_CONFIGURED -> R.string.sync_error_not_configured
         SyncError.UNAUTHORIZED -> R.string.sync_error_unauthorized
+        SyncError.RATE_LIMITED -> R.string.sync_error_rate_limited
         SyncError.NETWORK -> R.string.sync_error_network
         SyncError.BOT_RESPONSE_INVALID -> R.string.sync_error_bot_response_invalid
         SyncError.IMAGE_DOWNLOAD_FAILED -> R.string.sync_error_image_download_failed

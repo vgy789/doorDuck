@@ -56,6 +56,7 @@
 
     <string name="info_settings_saved">Настройки сохранены.</string>
     <string name="info_refresh_queued">Запрос на обновление отправлен.</string>
+    <string name="info_refresh_deferred_until">Обновление отложено из-за cooldown бота до %1$s.</string>
     <string name="info_wizard_done">Мастер завершен, настройки применены.</string>
     <string name="toast_qr_refreshed">QR-код обновлён.</string>
     <string name="toast_qr_refresh_failed">Не удалось обновить QR-код.</string>
@@ -71,18 +72,23 @@
     <string name="status_in_progress">Выполняется: %1$s</string>
     <string name="status_last_sync">Последняя успешная синхронизация: %1$s</string>
     <string name="status_expires">Срок действия до: %1$s</string>
+    <string name="status_next_auto_refresh">Следующая автоматическая попытка: %1$s</string>
+    <string name="status_auto_refresh_disabled">Автопродление отключено.</string>
     <string name="status_last_error">Последняя ошибка: %1$s</string>
     <string name="status_none">нет</string>
     <string name="status_never">никогда</string>
     <string name="status_unknown">неизвестно</string>
     <string name="sync_error_not_configured">не настроено</string>
     <string name="sync_error_unauthorized">ошибка авторизации</string>
+    <string name="sync_error_rate_limited">обновление отложено, бот попросил подождать</string>
     <string name="sync_error_network">сетевая ошибка</string>
     <string name="sync_error_bot_response_invalid">некорректный ответ бота</string>
     <string name="sync_error_image_download_failed">не удалось загрузить изображение</string>
     <string name="sync_error_unknown">неизвестная ошибка</string>
 
     <string name="widget_install_title">Добавить виджет на рабочий стол</string>
+    <string name="auto_refresh_label">Автопродление QR</string>
+    <string name="auto_refresh_hint">Пробовать обновлять QR автоматически с даты expire и повторять с растущим шагом.</string>
     <string name="widget_install_hint">Виджет можно добавить кнопкой или вручную через лаунчер.</string>
     <string name="widget_install_action">Добавить виджет</string>
     <string name="widget_install_step_1">1. Обычно: зажми пустое место на рабочем столе → Виджеты.</string>
