@@ -41,7 +41,7 @@
     <string name="instruction_step_5">5. Не удаляй токен, doorDuck будет использовать его для обновления QR.</string>
     <string name="instruction_open_link">Открыть страницу токенов Rocket</string>
     <string name="instruction_github_link">GitHub</string>
-    <string name="instruction_s21_login">s21 login: jonnabin</string>
+    <string name="instruction_s21_login">Author: jonnabin</string>
 
     <string name="connection_ok">Соединение успешно проверено.</string>
     <string name="connection_unauthorized">Неверный token или user ID.</string>
@@ -88,7 +88,7 @@
 
     <string name="widget_install_title">Добавить виджет на рабочий стол</string>
     <string name="auto_refresh_label">Автопродление QR</string>
-    <string name="auto_refresh_hint">Пробовать обновлять QR автоматически с даты expire и повторять с растущим шагом.</string>
+    <string name="auto_refresh_hint">Пробовать обновлять QR автоматически с даты expire.</string>
     <string name="widget_install_hint">Виджет можно добавить кнопкой или вручную через лаунчер.</string>
     <string name="widget_install_action">Добавить виджет</string>
     <string name="widget_install_step_1">1. Обычно: зажми пустое место на рабочем столе → Виджеты.</string>
