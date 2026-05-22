@@ -1,28 +1,40 @@
 package io.github.vgy789.doorDuck.domain
 
-import io.github.vgy789.doorDuck.model.Defaults
 import io.github.vgy789.doorDuck.platform.currentTimeMillis
 
 object SyncPolicy {
-    private const val dayInMs = 24L * 60L * 60L * 1000L
-    private const val refreshLeadTimeMs = dayInMs
-
-    fun expiresAtMs(receivedAtMs: Long): Long {
-        return receivedAtMs + Defaults.qrValidityDays * dayInMs
+    fun refreshAtMs(expiresAtMs: Long): Long {
+        return expiresAtMs
     }
 
-    fun refreshAtMs(expiresAtMs: Long): Long {
-        return (expiresAtMs - refreshLeadTimeMs).coerceAtLeast(0L)
+    fun nextRetryDelayMs(
+        attempt: Int,
+        minDelayMs: Long = 0L,
+    ): Long {
+        val scheduleMs = when (attempt.coerceAtLeast(0)) {
+            0 -> 60L * 60L * 1000L
+            1 -> 2L * 60L * 60L * 1000L
+            2 -> 3L * 60L * 60L * 1000L
+            3 -> 6L * 60L * 60L * 1000L
+            4 -> 12L * 60L * 60L * 1000L
+            else -> 24L * 60L * 60L * 1000L
+        }
+        return maxOf(scheduleMs, minDelayMs.coerceAtLeast(0L))
     }
 
     fun shouldRefreshNow(
+        autoRefreshEnabled: Boolean,
         localImagePath: String?,
         expiresAtMs: Long?,
+        nextAutoRefreshAtMs: Long?,
         nowMs: Long = currentTimeMillis(),
     ): Boolean {
-        if (localImagePath.isNullOrBlank()) return true
-        if (expiresAtMs == null) return true
-        return nowMs >= refreshAtMs(expiresAtMs)
+        if (!autoRefreshEnabled) return false
+        if (localImagePath.isNullOrBlank()) return false
+        if (expiresAtMs == null) return false
+        if (nowMs < refreshAtMs(expiresAtMs)) return false
+        if (nextAutoRefreshAtMs != null && nowMs < nextAutoRefreshAtMs) return false
+        return true
     }
 
     fun isExpired(

@@ -56,6 +56,7 @@
 
     <string name="info_settings_saved">Settings saved.</string>
     <string name="info_refresh_queued">Refresh request queued.</string>
+    <string name="info_refresh_deferred_until">Refresh is delayed by bot cooldown until %1$s.</string>
     <string name="info_wizard_done">Wizard completed, settings are active.</string>
     <string name="toast_qr_refreshed">QR code updated.</string>
     <string name="toast_qr_refresh_failed">QR update failed.</string>
@@ -71,18 +72,23 @@
     <string name="status_in_progress">In progress: %1$s</string>
     <string name="status_last_sync">Last success: %1$s</string>
     <string name="status_expires">Expires: %1$s</string>
+    <string name="status_next_auto_refresh">Next automatic attempt: %1$s</string>
+    <string name="status_auto_refresh_disabled">Automatic renewal is disabled.</string>
     <string name="status_last_error">Last error: %1$s</string>
     <string name="status_none">none</string>
     <string name="status_never">never</string>
     <string name="status_unknown">unknown</string>
     <string name="sync_error_not_configured">not configured</string>
     <string name="sync_error_unauthorized">unauthorized</string>
+    <string name="sync_error_rate_limited">retry delayed by bot cooldown</string>
     <string name="sync_error_network">network error</string>
     <string name="sync_error_bot_response_invalid">invalid bot response</string>
     <string name="sync_error_image_download_failed">image download failed</string>
     <string name="sync_error_unknown">unknown error</string>
 
     <string name="widget_install_title">Add widget to home screen</string>
+    <string name="auto_refresh_label">Automatic renewal</string>
+    <string name="auto_refresh_hint">Refresh QR automatically from the expire date with gradual retry.</string>
     <string name="widget_install_hint">You can add the widget from here, or manually via your launcher.</string>
     <string name="widget_install_action">Add widget</string>
     <string name="widget_install_step_1">1. Common way: long-press empty space on home screen → Widgets.</string>

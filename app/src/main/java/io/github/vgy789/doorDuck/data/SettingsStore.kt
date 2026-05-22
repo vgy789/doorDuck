@@ -23,9 +23,11 @@ private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(na
 class SettingsStore(private val context: Context) {
     private object Keys {
         val endpoint = stringPreferencesKey("endpoint")
+        val autoRefreshEnabled = booleanPreferencesKey("auto_refresh_enabled")
         val qrPath = stringPreferencesKey("qr_path")
         val receivedAtMs = longPreferencesKey("received_at_ms")
         val expiresAtMs = longPreferencesKey("expires_at_ms")
+        val nextAutoRefreshAtMs = longPreferencesKey("next_auto_refresh_at_ms")
         val lastSuccessAtMs = longPreferencesKey("last_success_at_ms")
         val revealUntilMs = longPreferencesKey("reveal_until_ms")
         val syncInProgress = booleanPreferencesKey("sync_in_progress")
@@ -46,9 +48,18 @@ class SettingsStore(private val context: Context) {
 
     suspend fun getSnapshot(): QrCodeSnapshot = context.dataStore.data.first().toSnapshot()
 
-    suspend fun updateCredentialsSettings(endpoint: String) {
+    suspend fun updateCredentialsSettings(endpoint: String, autoRefreshEnabled: Boolean? = null) {
         context.dataStore.edit { mutablePrefs ->
             mutablePrefs[Keys.endpoint] = InputSanitizer.endpoint(endpoint)
+            if (autoRefreshEnabled != null) {
+                mutablePrefs[Keys.autoRefreshEnabled] = autoRefreshEnabled
+            }
+        }
+    }
+
+    suspend fun setAutoRefreshEnabled(enabled: Boolean) {
+        context.dataStore.edit { mutablePrefs ->
+            mutablePrefs[Keys.autoRefreshEnabled] = enabled
         }
     }
 
@@ -68,11 +79,30 @@ class SettingsStore(private val context: Context) {
         }
     }
 
-    suspend fun saveSyncSuccess(path: String, receivedAtMs: Long, expiresAtMs: Long) {
+    suspend fun setNextAutoRefreshAt(nextAutoRefreshAtMs: Long?) {
+        context.dataStore.edit { mutablePrefs ->
+            if (nextAutoRefreshAtMs == null) {
+                mutablePrefs.remove(Keys.nextAutoRefreshAtMs)
+            } else {
+                mutablePrefs[Keys.nextAutoRefreshAtMs] = nextAutoRefreshAtMs
+            }
+        }
+    }
+
+    suspend fun saveSyncSuccess(path: String, receivedAtMs: Long, expiresAtMs: Long?, nextAutoRefreshAtMs: Long?) {
         context.dataStore.edit { mutablePrefs ->
             mutablePrefs[Keys.qrPath] = path
             mutablePrefs[Keys.receivedAtMs] = receivedAtMs
-            mutablePrefs[Keys.expiresAtMs] = expiresAtMs
+            if (expiresAtMs == null) {
+                mutablePrefs.remove(Keys.expiresAtMs)
+            } else {
+                mutablePrefs[Keys.expiresAtMs] = expiresAtMs
+            }
+            if (nextAutoRefreshAtMs == null) {
+                mutablePrefs.remove(Keys.nextAutoRefreshAtMs)
+            } else {
+                mutablePrefs[Keys.nextAutoRefreshAtMs] = nextAutoRefreshAtMs
+            }
             mutablePrefs[Keys.lastSuccessAtMs] = receivedAtMs
             mutablePrefs.remove(Keys.lastError)
             mutablePrefs[Keys.syncInProgress] = false
@@ -96,6 +126,7 @@ class SettingsStore(private val context: Context) {
         val endpointValue = this[Keys.endpoint].orEmpty().ifBlank { Defaults.defaultEndpoint }
         return UserSettings(
             endpoint = endpointValue,
+            autoRefreshEnabled = this[Keys.autoRefreshEnabled] ?: true,
         )
     }
 
@@ -104,6 +135,7 @@ class SettingsStore(private val context: Context) {
             localImagePath = this[Keys.qrPath],
             receivedAtMs = this[Keys.receivedAtMs],
             expiresAtMs = this[Keys.expiresAtMs],
+            nextAutoRefreshAtMs = this[Keys.nextAutoRefreshAtMs],
             lastSuccessAtMs = this[Keys.lastSuccessAtMs],
             revealUntilMs = this[Keys.revealUntilMs],
             isSyncInProgress = this[Keys.syncInProgress] ?: false,

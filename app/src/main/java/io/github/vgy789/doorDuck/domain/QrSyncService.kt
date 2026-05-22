@@ -83,20 +83,42 @@ class QrSyncService(
             val roomId = createDm(api)
             executeEnterCommand(api, roomId)
 
-            val payload = pollForQrPayload(api, roomId)
-                ?: throw SyncException(SyncError.BOT_RESPONSE_INVALID)
+            val pollResult = pollForQrPayload(api, roomId)
+            when (pollResult) {
+                is PollResult.RateLimited -> {
+                    return RefreshResult.Failure(
+                        error = SyncError.RATE_LIMITED,
+                        retryAfterMs = pollResult.retryAfterMs,
+                    )
+                }
+                PollResult.NoQrYet -> throw SyncException(SyncError.BOT_RESPONSE_INVALID)
+                is PollResult.Success -> {
+                    val payload = pollResult.payload
 
-            val bytes = decodeDataUriBase64(payload.dataUriBase64)
-            if (bytes.isEmpty()) {
-                throw SyncException(SyncError.IMAGE_DOWNLOAD_FAILED)
+                    val bytes = decodeDataUriBase64(payload.dataUriBase64)
+                    if (bytes.isEmpty()) {
+                        throw SyncException(SyncError.IMAGE_DOWNLOAD_FAILED)
+                    }
+
+                    val localPath = imageStore.save(bytes)
+                    val receivedAt = System.currentTimeMillis()
+                    val nextAutoRefreshAt = payload.expiresAtMs
+                        ?.takeIf { settings.autoRefreshEnabled }
+                        ?.let(SyncPolicy::refreshAtMs)
+                    settingsStore.saveSyncSuccess(
+                        path = localPath,
+                        receivedAtMs = receivedAt,
+                        expiresAtMs = payload.expiresAtMs,
+                        nextAutoRefreshAtMs = nextAutoRefreshAt,
+                    )
+                    if (settings.autoRefreshEnabled && payload.expiresAtMs != null) {
+                        workScheduler.scheduleRefreshAtExpiration(payload.expiresAtMs)
+                    } else {
+                        workScheduler.cancelAutomaticRefresh()
+                    }
+                    RefreshResult.Success(settingsStore.getSnapshot())
+                }
             }
-
-            val localPath = imageStore.save(bytes)
-            val receivedAt = System.currentTimeMillis()
-            val expiresAt = payload.expiresAtMs ?: SyncPolicy.expiresAtMs(receivedAt)
-            settingsStore.saveSyncSuccess(localPath, receivedAt, expiresAt)
-            workScheduler.scheduleRefreshAtExpiration(expiresAt)
-            RefreshResult.Success(settingsStore.getSnapshot())
         }.getOrElse { throwable ->
             val mapped = mapSyncError(throwable)
             settingsStore.saveSyncError(mapped)
@@ -158,26 +180,35 @@ class QrSyncService(
     private suspend fun pollForQrPayload(
         api: RocketChatApi,
         roomId: String,
-    ): QrPayload? {
+    ): PollResult {
         repeat(POLL_ATTEMPTS) {
             val messages = api.getMessages(roomId = roomId, count = 30).messages
-            val found = extractQrPayload(messages)
+            val found = extractPollResult(messages)
             if (found != null) return found
             delay(2_000L)
         }
-        return null
+        return PollResult.NoQrYet
     }
 
-    private fun extractQrPayload(messages: List<MessageDto>): QrPayload? {
+    private fun extractPollResult(messages: List<MessageDto>): PollResult? {
         return messages.firstNotNullOfOrNull { message ->
             if (message.u?.username.orEmpty() != Defaults.botUsername) return@firstNotNullOfOrNull null
 
             val inlineDataUriBase64 = extractDataUriFromMessage(message.msg)
-            if (inlineDataUriBase64 == null) return@firstNotNullOfOrNull null
-            QrPayload(
-                dataUriBase64 = inlineDataUriBase64,
-                expiresAtMs = extractExpirationFromMessage(message),
-            )
+            if (inlineDataUriBase64 != null) {
+                return@firstNotNullOfOrNull PollResult.Success(
+                    QrPayload(
+                        dataUriBase64 = inlineDataUriBase64,
+                        expiresAtMs = extractExpirationFromMessage(message),
+                    ),
+                )
+            }
+
+            val retryAfterMs = extractRetryAfterMs(message.msg)
+            if (retryAfterMs != null) {
+                return@firstNotNullOfOrNull PollResult.RateLimited(retryAfterMs)
+            }
+            null
         }
     }
 
@@ -200,6 +231,12 @@ class QrSyncService(
         if (msg.isNullOrBlank()) return null
         val match = dataUriImageRegex.find(msg) ?: return null
         return match.groupValues.getOrNull(1)
+    }
+
+    private fun extractRetryAfterMs(msg: String?): Long? {
+        if (msg.isNullOrBlank()) return null
+        val seconds = rateLimitRegex.find(msg)?.groupValues?.getOrNull(1)?.toLongOrNull() ?: return null
+        return seconds.coerceAtLeast(0L) * 1000L
     }
 
     private fun decodeDataUriBase64(dataUri: String): ByteArray {
@@ -234,9 +271,16 @@ class QrSyncService(
         val expiresAtMs: Long?,
     )
 
+    private sealed interface PollResult {
+        data class Success(val payload: QrPayload) : PollResult
+        data class RateLimited(val retryAfterMs: Long) : PollResult
+        data object NoQrYet : PollResult
+    }
+
     private companion object {
         const val POLL_ATTEMPTS = 6
         val expirationRegex = Regex("(?i)expire\\s+on\\s+(\\d{2}\\.\\d{2}\\.\\d{4})")
+        val rateLimitRegex = Regex("(?i)please\\s+wait\\s+(\\d+)\\s+seconds?.*again")
         val dataUriImageRegex = Regex("!\\[[^\\]]*\\]\\((data:image/[^;]+;base64,[^)]+)\\)")
         val expirationFormatter: DateTimeFormatter =
             DateTimeFormatter.ofPattern("dd.MM.yyyy", Locale.US)

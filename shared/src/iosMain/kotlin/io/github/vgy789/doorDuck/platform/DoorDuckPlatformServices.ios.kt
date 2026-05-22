@@ -214,7 +214,7 @@ actual object DoorDuckPlatformServices {
         return PlatformQrRefreshResult.Success(
             qrImageBase64 = payload.qrImageBase64,
             receivedAtMs = receivedAtMs,
-            expiresAtMs = payload.expiresAtMs ?: SyncPolicy.expiresAtMs(receivedAtMs),
+            expiresAtMs = payload.expiresAtMs,
         )
     }
 }

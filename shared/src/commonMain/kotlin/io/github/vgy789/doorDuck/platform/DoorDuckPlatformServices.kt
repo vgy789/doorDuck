@@ -19,7 +19,7 @@ sealed interface PlatformQrRefreshResult {
     data class Success(
         val qrImageBase64: String,
         val receivedAtMs: Long,
-        val expiresAtMs: Long,
+        val expiresAtMs: Long?,
     ) : PlatformQrRefreshResult
 
     data object NotConfigured : PlatformQrRefreshResult
