@@ -55,6 +55,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -348,6 +349,7 @@ private fun SettingsDashboard(
             onEndpointChange = viewModel::onEndpointChange,
             onUserIdChange = viewModel::onUserIdChange,
             onTokenChange = viewModel::onTokenChange,
+            onAutoRefreshEnabledChange = viewModel::setAutoRefreshEnabled,
             onCheckConnection = viewModel::checkConnection,
             onResetEndpoint = viewModel::resetEndpointToDefault,
         )
@@ -402,6 +404,19 @@ private fun StatusCard(state: MainUiState) {
                     style = MaterialTheme.typography.bodyMedium,
                     color = textColor,
                 )
+                if (state.autoRefreshEnabled && state.nextAutoRefreshAtMs != null) {
+                    Text(
+                        stringResource(R.string.status_next_auto_refresh, state.nextAutoRefreshAtMs.formatDateTime()),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = textColor,
+                    )
+                } else if (!state.autoRefreshEnabled) {
+                    Text(
+                        stringResource(R.string.status_auto_refresh_disabled),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = textColor,
+                    )
+                }
             }
         }
     }
@@ -499,6 +514,7 @@ private fun ConnectionCard(
     onEndpointChange: (String) -> Unit,
     onUserIdChange: (String) -> Unit,
     onTokenChange: (String) -> Unit,
+    onAutoRefreshEnabledChange: (Boolean) -> Unit,
     onCheckConnection: () -> Unit,
     onResetEndpoint: () -> Unit,
 ) {
@@ -566,6 +582,32 @@ private fun ConnectionCard(
                     visualTransformation = PasswordVisualTransformation(),
                 )
 
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(2.dp),
+                    ) {
+                        Text(
+                            text = stringResource(R.string.auto_refresh_label),
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Medium,
+                        )
+                        Text(
+                            text = stringResource(R.string.auto_refresh_hint),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Switch(
+                        checked = state.autoRefreshEnabled,
+                        onCheckedChange = onAutoRefreshEnabledChange,
+                    )
+                }
+
                 FilledTonalButton(
                     onClick = onCheckConnection,
                     enabled = !state.isConnectionCheckInProgress,
@@ -589,6 +631,13 @@ private fun ConnectionCard(
                     }
                     Text(
                         text = connectionStatusText,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                if (state.autoRefreshEnabled && state.nextAutoRefreshAtMs != null) {
+                    Text(
+                        text = stringResource(R.string.status_next_auto_refresh, state.nextAutoRefreshAtMs.formatDateTime()),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
