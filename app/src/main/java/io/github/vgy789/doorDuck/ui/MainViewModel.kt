@@ -32,6 +32,7 @@ data class MainUiState(
     val userId: String = "",
     val hasStoredCredentials: Boolean = false,
     val autoRefreshEnabled: Boolean = true,
+    val maxBrightnessEnabled: Boolean = false,
     val qrImagePath: String? = null,
     val lastSuccessAtMs: Long? = null,
     val expiresAtMs: Long? = null,
@@ -86,6 +87,7 @@ class MainViewModel(
                             },
                             hasStoredCredentials = state.hasCredentials,
                             autoRefreshEnabled = state.settings.autoRefreshEnabled,
+                            maxBrightnessEnabled = state.settings.maxBrightnessEnabled,
                             qrImagePath = state.snapshot.localImagePath,
                             lastSuccessAtMs = state.snapshot.lastSuccessAtMs,
                             expiresAtMs = state.snapshot.expiresAtMs,
@@ -356,6 +358,13 @@ class MainViewModel(
                     nextAutoRefreshAtMs = if (enabled) it.nextAutoRefreshAtMs else null,
                 )
             }
+        }
+    }
+
+    fun setMaxBrightnessEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            appContainer.settingsStore.setMaxBrightnessEnabled(enabled)
+            _uiState.update { it.copy(maxBrightnessEnabled = enabled) }
         }
     }
 
