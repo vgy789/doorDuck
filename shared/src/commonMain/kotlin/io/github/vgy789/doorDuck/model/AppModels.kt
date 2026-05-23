@@ -10,6 +10,7 @@ object Defaults {
 data class UserSettings(
     val endpoint: String = Defaults.defaultEndpoint,
     val autoRefreshEnabled: Boolean = true,
+    val maxBrightnessEnabled: Boolean = false,
 )
 
 data class Credentials(

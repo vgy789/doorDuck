@@ -24,6 +24,7 @@ class SettingsStore(private val context: Context) {
     private object Keys {
         val endpoint = stringPreferencesKey("endpoint")
         val autoRefreshEnabled = booleanPreferencesKey("auto_refresh_enabled")
+        val maxBrightnessEnabled = booleanPreferencesKey("max_brightness_enabled")
         val qrPath = stringPreferencesKey("qr_path")
         val receivedAtMs = longPreferencesKey("received_at_ms")
         val expiresAtMs = longPreferencesKey("expires_at_ms")
@@ -61,6 +62,12 @@ class SettingsStore(private val context: Context) {
     suspend fun setAutoRefreshEnabled(enabled: Boolean) {
         context.dataStore.edit { mutablePrefs ->
             mutablePrefs[Keys.autoRefreshEnabled] = enabled
+        }
+    }
+
+    suspend fun setMaxBrightnessEnabled(enabled: Boolean) {
+        context.dataStore.edit { mutablePrefs ->
+            mutablePrefs[Keys.maxBrightnessEnabled] = enabled
         }
     }
 
@@ -138,6 +145,7 @@ class SettingsStore(private val context: Context) {
         return UserSettings(
             endpoint = endpointValue,
             autoRefreshEnabled = this[Keys.autoRefreshEnabled] ?: true,
+            maxBrightnessEnabled = this[Keys.maxBrightnessEnabled] ?: false,
         )
     }
 

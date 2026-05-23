@@ -76,6 +76,7 @@
     <string name="status_next_auto_refresh">Next automatic attempt: %1$s</string>
     <string name="status_auto_refresh_disabled">Automatic renewal is disabled.</string>
     <string name="status_last_error">Last error: %1$s</string>
+    <string name="status_toggle_details">Show or hide status details</string>
     <string name="status_none">none</string>
     <string name="status_never">never</string>
     <string name="status_unknown">unknown</string>
@@ -90,6 +91,8 @@
     <string name="widget_install_title">Add widget to home screen</string>
     <string name="auto_refresh_label">Automatic renewal</string>
     <string name="auto_refresh_hint">Refresh QR automatically from the expire date with gradual retry.</string>
+    <string name="max_brightness_label">Maximum brightness</string>
+    <string name="max_brightness_hint">Launch the app with maximum screen brightness.</string>
     <string name="widget_install_hint">You can add the widget from here, or manually via your launcher.</string>
     <string name="widget_install_action">Add widget</string>
     <string name="widget_install_step_1">1. Common way: long-press empty space on home screen → Widgets.</string>

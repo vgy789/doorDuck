@@ -364,6 +364,7 @@ private fun SettingsDashboard(
             onRefresh = viewModel::refreshNow,
             onOpenQr = onOpenQr,
             onAutoRefreshEnabledChange = viewModel::setAutoRefreshEnabled,
+            onMaxBrightnessEnabledChange = viewModel::setMaxBrightnessEnabled,
         )
         WidgetInstallCard()
         ConnectionCard(
@@ -385,6 +386,7 @@ private fun SettingsDashboard(
 
 @Composable
 private fun StatusCard(state: MainUiState) {
+    var detailsExpanded by remember { mutableStateOf(false) }
     val hasActiveQr = state.qrImagePath != null && !SyncPolicy.isExpired(state.expiresAtMs)
     val headline = when {
         state.syncInProgress -> stringResource(R.string.status_qr_refreshing)
@@ -418,30 +420,53 @@ private fun StatusCard(state: MainUiState) {
                     Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = Color(0xFF167335))
                 }
             }
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(headline, color = headlineColor, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
-                Text(
-                    stringResource(R.string.status_last_sync, state.lastSuccessAtMs?.formatDateTime() ?: stringResource(R.string.status_never)),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = textColor,
-                )
-                Text(
-                    stringResource(R.string.status_expires, state.expiresAtMs?.formatDateOnly() ?: stringResource(R.string.status_unknown)),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = textColor,
-                )
-                if (state.autoRefreshEnabled && state.nextAutoRefreshAtMs != null) {
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
                     Text(
-                        stringResource(R.string.status_next_auto_refresh, state.nextAutoRefreshAtMs.formatDateTime()),
+                        headline,
+                        color = headlineColor,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    IconButton(onClick = { detailsExpanded = !detailsExpanded }) {
+                        Icon(
+                            imageVector = if (detailsExpanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+                            contentDescription = stringResource(R.string.status_toggle_details),
+                            tint = textColor,
+                        )
+                    }
+                }
+                if (detailsExpanded) {
+                    Text(
+                        stringResource(R.string.status_last_sync, state.lastSuccessAtMs?.formatDateTime() ?: stringResource(R.string.status_never)),
                         style = MaterialTheme.typography.bodyMedium,
                         color = textColor,
                     )
-                } else if (!state.autoRefreshEnabled) {
                     Text(
-                        stringResource(R.string.status_auto_refresh_disabled),
+                        stringResource(R.string.status_expires, state.expiresAtMs?.formatDateOnly() ?: stringResource(R.string.status_unknown)),
                         style = MaterialTheme.typography.bodyMedium,
                         color = textColor,
                     )
+                    if (state.autoRefreshEnabled && state.nextAutoRefreshAtMs != null) {
+                        Text(
+                            stringResource(R.string.status_next_auto_refresh, state.nextAutoRefreshAtMs.formatDateTime()),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = textColor,
+                        )
+                    } else if (!state.autoRefreshEnabled) {
+                        Text(
+                            stringResource(R.string.status_auto_refresh_disabled),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = textColor,
+                        )
+                    }
                 }
             }
         }
@@ -455,6 +480,7 @@ private fun QrCard(
     onRefresh: () -> Unit,
     onOpenQr: () -> Unit,
     onAutoRefreshEnabledChange: (Boolean) -> Unit,
+    onMaxBrightnessEnabledChange: (Boolean) -> Unit,
 ) {
     val bitmap = remember(state.qrImagePath) {
         state.qrImagePath?.let { BitmapFactory.decodeFile(it) }
@@ -545,6 +571,32 @@ private fun QrCard(
                 Switch(
                     checked = state.autoRefreshEnabled,
                     onCheckedChange = onAutoRefreshEnabledChange,
+                )
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                ) {
+                    Text(
+                        text = stringResource(R.string.max_brightness_label),
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Medium,
+                    )
+                    Text(
+                        text = stringResource(R.string.max_brightness_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Switch(
+                    checked = state.maxBrightnessEnabled,
+                    onCheckedChange = onMaxBrightnessEnabledChange,
                 )
             }
         }

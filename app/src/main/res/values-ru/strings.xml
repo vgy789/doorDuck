@@ -76,6 +76,7 @@
     <string name="status_next_auto_refresh">Следующая автоматическая попытка: %1$s</string>
     <string name="status_auto_refresh_disabled">Автопродление отключено.</string>
     <string name="status_last_error">Последняя ошибка: %1$s</string>
+    <string name="status_toggle_details">Показать или скрыть детали статуса</string>
     <string name="status_none">нет</string>
     <string name="status_never">никогда</string>
     <string name="status_unknown">неизвестно</string>
@@ -89,7 +90,9 @@
 
     <string name="widget_install_title">Добавить виджет на рабочий стол</string>
     <string name="auto_refresh_label">Автопродление QR</string>
-    <string name="auto_refresh_hint">Пробовать обновлять QR автоматически с даты expire.</string>
+    <string name="auto_refresh_hint">Пробовать обновлять QR автоматически с даты «действует до».</string>
+    <string name="max_brightness_label">Максимальная яркость</string>
+    <string name="max_brightness_hint">Запускать приложение с максимальной яркостью.</string>
     <string name="widget_install_hint">Виджет можно добавить кнопкой или вручную через лаунчер.</string>
     <string name="widget_install_action">Добавить виджет</string>
     <string name="widget_install_step_1">1. Обычно: зажми пустое место на рабочем столе → Виджеты.</string>
