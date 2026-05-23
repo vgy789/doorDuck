@@ -36,6 +36,7 @@ data class MainUiState(
     val lastSuccessAtMs: Long? = null,
     val expiresAtMs: Long? = null,
     val nextAutoRefreshAtMs: Long? = null,
+    val manualRefreshBlockedUntilMs: Long? = null,
     val syncInProgress: Boolean = false,
     val isConnectionCheckInProgress: Boolean = false,
     val lastConnectionCheckResult: ConnectionCheckResult? = null,
@@ -89,6 +90,7 @@ class MainViewModel(
                             lastSuccessAtMs = state.snapshot.lastSuccessAtMs,
                             expiresAtMs = state.snapshot.expiresAtMs,
                             nextAutoRefreshAtMs = state.snapshot.nextAutoRefreshAtMs,
+                            manualRefreshBlockedUntilMs = state.snapshot.manualRefreshBlockedUntilMs,
                             syncInProgress = state.snapshot.isSyncInProgress,
                             lastError = state.snapshot.lastError,
                         )
@@ -287,12 +289,17 @@ class MainViewModel(
     fun refreshNow() {
         viewModelScope.launch {
             val state = uiState.value
+            val nowMs = System.currentTimeMillis()
             if (state.syncInProgress) return@launch
+            if (SyncPolicy.isManualRefreshBlocked(state.manualRefreshBlockedUntilMs, nowMs)) {
+                setInfo(R.string.info_refresh_short_cooldown)
+                return@launch
+            }
             val nextAutoRefreshAtMs = state.nextAutoRefreshAtMs
             if (
                 state.lastError == SyncError.RATE_LIMITED &&
                 nextAutoRefreshAtMs != null &&
-                nextAutoRefreshAtMs > System.currentTimeMillis()
+                nextAutoRefreshAtMs > nowMs
             ) {
                 _uiState.update {
                     it.copy(
@@ -304,6 +311,9 @@ class MainViewModel(
                 }
                 return@launch
             }
+            appContainer.settingsStore.setManualRefreshBlockedUntil(
+                SyncPolicy.nextManualRefreshAllowedAt(nowMs),
+            )
             appContainer.settingsStore.setSyncInProgress(true)
             appContainer.workScheduler.enqueueManualRefresh()
             appContainer.widgetUpdateCoordinator.forceWidgetUpdateNow()
@@ -362,6 +372,9 @@ class MainViewModel(
                 endpoint = endpoint,
                 token = state.authToken,
                 userId = state.userId,
+            )
+            appContainer.settingsStore.setManualRefreshBlockedUntil(
+                SyncPolicy.nextManualRefreshAllowedAt(),
             )
             appContainer.settingsStore.setSyncInProgress(true)
             appContainer.workScheduler.enqueueManualRefresh(showToastOnResult = true)

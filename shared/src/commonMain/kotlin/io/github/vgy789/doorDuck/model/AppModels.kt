@@ -3,6 +3,7 @@ package io.github.vgy789.doorDuck.model
 object Defaults {
     const val defaultEndpoint = "https://rocketchat-student.21-school.ru/api/v1"
     const val revealDurationMillis = 60_000L
+    const val manualRefreshCooldownMillis = 5_000L
     const val botUsername = "qr-code-generator.bot"
 }
 
@@ -39,6 +40,7 @@ data class QrCodeSnapshot(
     val receivedAtMs: Long? = null,
     val expiresAtMs: Long? = null,
     val nextAutoRefreshAtMs: Long? = null,
+    val manualRefreshBlockedUntilMs: Long? = null,
     val lastSuccessAtMs: Long? = null,
     val revealUntilMs: Long? = null,
     val isSyncInProgress: Boolean = false,

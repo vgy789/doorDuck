@@ -10,6 +10,7 @@ data class PersistedDoorDuckState(
     val userId: String,
     val lastSuccessAtMs: Long?,
     val expiresAtMs: Long?,
+    val manualRefreshBlockedUntilMs: Long?,
     val lastConnectionResult: ConnectionCheckResult?,
     val lastSyncError: SyncError?,
     val qrImageBase64: String?,

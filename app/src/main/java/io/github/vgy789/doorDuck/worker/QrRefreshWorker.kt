@@ -43,6 +43,7 @@ class QrRefreshWorker(
             is RefreshResult.Failure -> {
                 val isAutomaticAttempt = inputData.getBoolean(KEY_REFRESH_ONLY_IF_DUE, false)
                 val autoRefreshEnabled = container.settingsStore.getSettings().autoRefreshEnabled
+                val snapshot = container.settingsStore.getSnapshot()
                 val attempt = if (isAutomaticAttempt) {
                     inputData.getInt(KEY_AUTO_RETRY_ATTEMPT, 0)
                 } else {
@@ -50,11 +51,11 @@ class QrRefreshWorker(
                 }
                 val shouldPersistCooldown = result.retryAfterMs != null
                 if (shouldPersistCooldown) {
-                    val retryDelayMs = SyncPolicy.nextRetryDelayMs(
+                    val retryAtMs = SyncPolicy.nextRetryAtMs(
+                        expiresAtMs = snapshot.expiresAtMs,
                         attempt = attempt,
                         minDelayMs = result.retryAfterMs ?: 0L,
                     )
-                    val retryAtMs = System.currentTimeMillis() + retryDelayMs
                     container.settingsStore.setNextAutoRefreshAt(retryAtMs)
                     if (autoRefreshEnabled) {
                         container.workScheduler.scheduleAutomaticRetry(
@@ -64,11 +65,10 @@ class QrRefreshWorker(
                     }
                     Result.success()
                 } else if (isAutomaticAttempt && autoRefreshEnabled) {
-                    val retryDelayMs = SyncPolicy.nextRetryDelayMs(
+                    val retryAtMs = SyncPolicy.nextRetryAtMs(
+                        expiresAtMs = snapshot.expiresAtMs,
                         attempt = attempt,
-                        minDelayMs = 0L,
                     )
-                    val retryAtMs = System.currentTimeMillis() + retryDelayMs
                     container.settingsStore.setNextAutoRefreshAt(retryAtMs)
                     container.workScheduler.scheduleAutomaticRetry(
                         retryAtMs = retryAtMs,

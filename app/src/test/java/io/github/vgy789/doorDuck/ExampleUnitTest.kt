@@ -116,4 +116,51 @@ class ExampleUnitTest {
             ),
         )
     }
+
+    @Test
+    fun manual_refresh_cooldown_blocks_repeated_taps() {
+        assertTrue(SyncPolicy.isManualRefreshBlocked(blockedUntilMs = 5_000L, nowMs = 4_999L))
+        assertFalse(SyncPolicy.isManualRefreshBlocked(blockedUntilMs = 5_000L, nowMs = 5_000L))
+        assertEquals(6_000L, SyncPolicy.nextManualRefreshAllowedAt(nowMs = 1_000L))
+    }
+
+    @Test
+    fun auto_retry_slots_are_anchored_to_expire_time() {
+        val expireAtMs = 1_000L
+
+        assertEquals(
+            expireAtMs + 1L * 60L * 60L * 1000L,
+            SyncPolicy.nextRetryAtMs(
+                expiresAtMs = expireAtMs,
+                attempt = 0,
+                nowMs = expireAtMs + 10_000L,
+            ),
+        )
+
+        assertEquals(
+            expireAtMs + 3L * 60L * 60L * 1000L,
+            SyncPolicy.nextRetryAtMs(
+                expiresAtMs = expireAtMs,
+                attempt = 1,
+                nowMs = expireAtMs + 70L * 60L * 1000L,
+            ),
+        )
+    }
+
+    @Test
+    fun auto_retry_respects_bot_cooldown_if_it_pushes_later_than_slot() {
+        val expireAtMs = 1_000L
+        val nowMs = expireAtMs + 50L * 60L * 1000L
+        val cooldownMs = 20L * 60L * 1000L
+
+        assertEquals(
+            nowMs + cooldownMs,
+            SyncPolicy.nextRetryAtMs(
+                expiresAtMs = expireAtMs,
+                attempt = 0,
+                nowMs = nowMs,
+                minDelayMs = cooldownMs,
+            ),
+        )
+    }
 }
