@@ -28,6 +28,7 @@ class SettingsStore(private val context: Context) {
         val receivedAtMs = longPreferencesKey("received_at_ms")
         val expiresAtMs = longPreferencesKey("expires_at_ms")
         val nextAutoRefreshAtMs = longPreferencesKey("next_auto_refresh_at_ms")
+        val manualRefreshBlockedUntilMs = longPreferencesKey("manual_refresh_blocked_until_ms")
         val lastSuccessAtMs = longPreferencesKey("last_success_at_ms")
         val revealUntilMs = longPreferencesKey("reveal_until_ms")
         val syncInProgress = booleanPreferencesKey("sync_in_progress")
@@ -89,6 +90,16 @@ class SettingsStore(private val context: Context) {
         }
     }
 
+    suspend fun setManualRefreshBlockedUntil(manualRefreshBlockedUntilMs: Long?) {
+        context.dataStore.edit { mutablePrefs ->
+            if (manualRefreshBlockedUntilMs == null) {
+                mutablePrefs.remove(Keys.manualRefreshBlockedUntilMs)
+            } else {
+                mutablePrefs[Keys.manualRefreshBlockedUntilMs] = manualRefreshBlockedUntilMs
+            }
+        }
+    }
+
     suspend fun saveSyncSuccess(path: String, receivedAtMs: Long, expiresAtMs: Long?, nextAutoRefreshAtMs: Long?) {
         context.dataStore.edit { mutablePrefs ->
             mutablePrefs[Keys.qrPath] = path
@@ -136,6 +147,7 @@ class SettingsStore(private val context: Context) {
             receivedAtMs = this[Keys.receivedAtMs],
             expiresAtMs = this[Keys.expiresAtMs],
             nextAutoRefreshAtMs = this[Keys.nextAutoRefreshAtMs],
+            manualRefreshBlockedUntilMs = this[Keys.manualRefreshBlockedUntilMs],
             lastSuccessAtMs = this[Keys.lastSuccessAtMs],
             revealUntilMs = this[Keys.revealUntilMs],
             isSyncInProgress = this[Keys.syncInProgress] ?: false,

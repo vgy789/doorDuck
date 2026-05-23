@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
@@ -62,6 +63,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -85,12 +87,28 @@ import io.github.vgy789.doorDuck.model.SyncError
 import io.github.vgy789.doorDuck.widget.QrGlanceWidgetReceiver
 import java.text.DateFormat
 import java.util.Date
+import kotlinx.coroutines.delay
 
 @Composable
 fun MainScreen(viewModel: MainViewModel) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var connectionExpanded by remember(state.mode) { mutableStateOf(state.mode == ScreenMode.SETTINGS) }
     var showQrDialog by remember { mutableStateOf(false) }
+    val refreshCooldownNowMs by produceState(
+        initialValue = System.currentTimeMillis(),
+        key1 = state.manualRefreshBlockedUntilMs,
+        key2 = state.syncInProgress,
+    ) {
+        value = System.currentTimeMillis()
+        val blockedUntilMs = state.manualRefreshBlockedUntilMs
+        if (!state.syncInProgress && blockedUntilMs != null) {
+            val waitMs = (blockedUntilMs - value).coerceAtLeast(0L)
+            if (waitMs > 0L) {
+                delay(waitMs + 50L)
+                value = System.currentTimeMillis()
+            }
+        }
+    }
 
     Scaffold(containerColor = Color.Transparent) { padding ->
         Column(
@@ -114,6 +132,7 @@ fun MainScreen(viewModel: MainViewModel) {
                 ScreenMode.SETTINGS -> SettingsDashboard(
                     state = state,
                     viewModel = viewModel,
+                    refreshCooldownNowMs = refreshCooldownNowMs,
                     connectionExpanded = connectionExpanded,
                     onToggleConnection = { connectionExpanded = !connectionExpanded },
                     onOpenQr = { showQrDialog = true },
@@ -330,6 +349,7 @@ private fun WizardButtons(
 private fun SettingsDashboard(
     state: MainUiState,
     viewModel: MainViewModel,
+    refreshCooldownNowMs: Long,
     connectionExpanded: Boolean,
     onToggleConnection: () -> Unit,
     onOpenQr: () -> Unit,
@@ -338,7 +358,13 @@ private fun SettingsDashboard(
 
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         StatusCard(state = state)
-        QrCard(state = state, onRefresh = viewModel::refreshNow, onRunWizard = viewModel::openWizard, onOpenQr = onOpenQr)
+        QrCard(
+            state = state,
+            refreshCooldownNowMs = refreshCooldownNowMs,
+            onRefresh = viewModel::refreshNow,
+            onOpenQr = onOpenQr,
+            onAutoRefreshEnabledChange = viewModel::setAutoRefreshEnabled,
+        )
         WidgetInstallCard()
         ConnectionCard(
             state = state,
@@ -349,11 +375,11 @@ private fun SettingsDashboard(
             onEndpointChange = viewModel::onEndpointChange,
             onUserIdChange = viewModel::onUserIdChange,
             onTokenChange = viewModel::onTokenChange,
-            onAutoRefreshEnabledChange = viewModel::setAutoRefreshEnabled,
             onCheckConnection = viewModel::checkConnection,
             onResetEndpoint = viewModel::resetEndpointToDefault,
         )
         HelpCard()
+        CreditsCard()
     }
 }
 
@@ -425,13 +451,18 @@ private fun StatusCard(state: MainUiState) {
 @Composable
 private fun QrCard(
     state: MainUiState,
+    refreshCooldownNowMs: Long,
     onRefresh: () -> Unit,
-    onRunWizard: () -> Unit,
     onOpenQr: () -> Unit,
+    onAutoRefreshEnabledChange: (Boolean) -> Unit,
 ) {
     val bitmap = remember(state.qrImagePath) {
         state.qrImagePath?.let { BitmapFactory.decodeFile(it) }
     }
+    val isManualRefreshBlocked = SyncPolicy.isManualRefreshBlocked(
+        state.manualRefreshBlockedUntilMs,
+        refreshCooldownNowMs,
+    )
 
     DashboardCard {
         Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -459,7 +490,10 @@ private fun QrCard(
                     contentAlignment = Alignment.Center,
                 ) {
                     if (bitmap == null) {
-                        Text(stringResource(R.string.app_qr_empty))
+                        Text(
+                            text = stringResource(R.string.app_qr_empty),
+                            color = Color(0xFF465062),
+                        )
                     } else {
                         Image(
                             bitmap = bitmap.asImageBitmap(),
@@ -475,7 +509,7 @@ private fun QrCard(
 
             Button(
                 onClick = onRefresh,
-                enabled = !state.syncInProgress,
+                enabled = !state.syncInProgress && !isManualRefreshBlocked,
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(18.dp),
                 colors = ButtonDefaults.buttonColors(
@@ -488,17 +522,30 @@ private fun QrCard(
                 Text(stringResource(R.string.manual_refresh))
             }
 
-            OutlinedButton(
-                onClick = onRunWizard,
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(18.dp),
-                colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = if (MaterialTheme.colorScheme.background.red < 0.2f) Color(0xFFFFE7B5) else Color(0xFF6F4700),
-                ),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Icon(Icons.Filled.PlayArrow, contentDescription = null)
-                Box(modifier = Modifier.width(10.dp))
-                Text(stringResource(R.string.action_run_wizard))
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                ) {
+                    Text(
+                        text = stringResource(R.string.auto_refresh_label),
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Medium,
+                    )
+                    Text(
+                        text = stringResource(R.string.auto_refresh_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Switch(
+                    checked = state.autoRefreshEnabled,
+                    onCheckedChange = onAutoRefreshEnabledChange,
+                )
             }
         }
     }
@@ -514,7 +561,6 @@ private fun ConnectionCard(
     onEndpointChange: (String) -> Unit,
     onUserIdChange: (String) -> Unit,
     onTokenChange: (String) -> Unit,
-    onAutoRefreshEnabledChange: (Boolean) -> Unit,
     onCheckConnection: () -> Unit,
     onResetEndpoint: () -> Unit,
 ) {
@@ -581,32 +627,6 @@ private fun ConnectionCard(
                     singleLine = true,
                     visualTransformation = PasswordVisualTransformation(),
                 )
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Column(
-                        modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(2.dp),
-                    ) {
-                        Text(
-                            text = stringResource(R.string.auto_refresh_label),
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Medium,
-                        )
-                        Text(
-                            text = stringResource(R.string.auto_refresh_hint),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    Switch(
-                        checked = state.autoRefreshEnabled,
-                        onCheckedChange = onAutoRefreshEnabledChange,
-                    )
-                }
 
                 FilledTonalButton(
                     onClick = onCheckConnection,
@@ -736,7 +756,6 @@ private fun WidgetInstallCard() {
 private fun HelpCard() {
     val uriHandler = LocalUriHandler.current
     val url = stringResource(R.string.rocket_tokens_url)
-    val githubUrl = stringResource(R.string.github_url)
 
     DashboardCard {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -767,17 +786,39 @@ private fun HelpCard() {
                 Box(modifier = Modifier.width(8.dp))
                 Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null)
             }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
+        }
+    }
+}
+
+@Composable
+private fun CreditsCard() {
+    val uriHandler = LocalUriHandler.current
+    val githubUrl = stringResource(R.string.github_url)
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            TextButton(onClick = { uriHandler.openUri(githubUrl) }) {
+                Text(
+                    text = stringResource(R.string.instruction_github_link),
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+            Box(
+                modifier = Modifier
+                    .heightIn(min = 40.dp)
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                contentAlignment = Alignment.Center,
             ) {
-                TextButton(onClick = { uriHandler.openUri(githubUrl) }) {
-                    Text(
-                        text = stringResource(R.string.instruction_github_link),
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                }
                 Text(
                     text = stringResource(R.string.instruction_s21_login),
                     style = MaterialTheme.typography.bodySmall,

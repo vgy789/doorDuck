@@ -222,7 +222,6 @@ internal fun DoorDuckQrCard(
     qrImageBase64: String?,
     isRefreshingQr: Boolean,
     onRefreshQr: () -> Unit,
-    onRunWizard: () -> Unit,
 ) {
     val dark = isDoorDuckDarkTheme()
     val qrFrameColor = if (dark) Color(0xFFFFFEFB) else Color(0xFFFFFFFF)
@@ -277,18 +276,6 @@ internal fun DoorDuckQrCard(
                 ),
             ) {
                 Text(if (isRefreshingQr) strings.connectionChecking else strings.actionRefreshNow)
-            }
-            OutlinedButton(
-                onClick = onRunWizard,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 54.dp),
-                shape = RoundedCornerShape(18.dp),
-                colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = if (dark) Color(0xFFFFE7B5) else Color(0xFF6F4700),
-                ),
-            ) {
-                Text(strings.actionRunWizard)
             }
         }
     }
@@ -452,7 +439,6 @@ internal fun DoorDuckWidgetCard(
 internal fun DoorDuckHelpCard(
     strings: SharedStrings,
     onOpenTokensPage: () -> Unit,
-    onOpenGithubPage: () -> Unit,
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -477,14 +463,36 @@ internal fun DoorDuckHelpCard(
             TextButton(onClick = onOpenTokensPage) {
                 Text(strings.instructionOpenLink)
             }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
+        }
+    }
+}
+
+@Composable
+internal fun DoorDuckCreditsCard(
+    strings: SharedStrings,
+    onOpenGithubPage: () -> Unit,
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            TextButton(onClick = onOpenGithubPage) {
+                Text(strings.githubLinkLabel, style = MaterialTheme.typography.bodySmall)
+            }
+            Box(
+                modifier = Modifier
+                    .heightIn(min = 40.dp)
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                contentAlignment = Alignment.Center,
             ) {
-                TextButton(onClick = onOpenGithubPage) {
-                    Text(strings.githubLinkLabel, style = MaterialTheme.typography.bodySmall)
-                }
                 Text(
                     text = strings.githubOwnerLabel,
                     style = MaterialTheme.typography.bodySmall,

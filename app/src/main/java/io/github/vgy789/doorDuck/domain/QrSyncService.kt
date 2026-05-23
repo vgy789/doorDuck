@@ -17,7 +17,7 @@ import io.github.vgy789.doorDuck.network.SendMessagePayload
 import io.github.vgy789.doorDuck.network.SendMessageRequest
 import java.io.IOException
 import java.time.LocalDate
-import java.time.ZoneId
+import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.util.Base64
 import java.util.Locale
@@ -181,11 +181,13 @@ class QrSyncService(
         api: RocketChatApi,
         roomId: String,
     ): PollResult {
-        repeat(POLL_ATTEMPTS) {
+        repeat(POLL_ATTEMPTS) { attempt ->
             val messages = api.getMessages(roomId = roomId, count = 30).messages
             val found = extractPollResult(messages)
             if (found != null) return found
-            delay(2_000L)
+            if (attempt < POLL_ATTEMPTS - 1) {
+                delay(POLL_DELAY_MS)
+            }
         }
         return PollResult.NoQrYet
     }
@@ -220,7 +222,7 @@ class QrSyncService(
             val rawDate = match.groupValues.getOrNull(1) ?: continue
             val parsedDate = runCatching { LocalDate.parse(rawDate, expirationFormatter) }.getOrNull() ?: continue
             return parsedDate
-                .atStartOfDay(ZoneId.systemDefault())
+                .atStartOfDay(ZoneOffset.ofHours(3))
                 .toInstant()
                 .toEpochMilli()
         }
@@ -279,6 +281,7 @@ class QrSyncService(
 
     private companion object {
         const val POLL_ATTEMPTS = 6
+        const val POLL_DELAY_MS = 2_000L
         val expirationRegex = Regex("(?i)expire\\s+on\\s+(\\d{2}\\.\\d{2}\\.\\d{4})")
         val rateLimitRegex = Regex("(?i)please\\s+wait\\s+(\\d+)\\s+seconds?.*again")
         val dataUriImageRegex = Regex("!\\[[^\\]]*\\]\\((data:image/[^;]+;base64,[^)]+)\\)")

@@ -3,10 +3,12 @@ package io.github.vgy789.doorDuck.shared
 import android.graphics.BitmapFactory
 import android.util.Base64
 import androidx.compose.foundation.Image
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 
 @Composable
@@ -25,7 +27,14 @@ actual fun PlatformQrPreview(
         }
     }
     if (bitmap == null) {
-        Text(emptyText)
+        Text(
+            text = emptyText,
+            color = if (MaterialTheme.colorScheme.background.red < 0.2f) {
+                Color(0xFF465062)
+            } else {
+                Color(0xFF465062)
+            },
+        )
     } else {
         Image(
             bitmap = bitmap.asImageBitmap(),

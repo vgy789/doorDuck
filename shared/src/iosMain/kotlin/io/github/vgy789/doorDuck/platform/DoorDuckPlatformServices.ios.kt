@@ -33,12 +33,14 @@ private const val KEY_TOKEN = "door_duck.token"
 private const val KEY_USER_ID = "door_duck.user_id"
 private const val KEY_LAST_SUCCESS_AT = "door_duck.last_success_at"
 private const val KEY_EXPIRES_AT = "door_duck.expires_at"
+private const val KEY_MANUAL_REFRESH_BLOCKED_UNTIL = "door_duck.manual_refresh_blocked_until"
 private const val KEY_LAST_CONNECTION_RESULT = "door_duck.last_connection_result"
 private const val KEY_LAST_SYNC_ERROR = "door_duck.last_sync_error"
 private const val KEY_QR_IMAGE_BASE64 = "door_duck.qr_image_base64"
 private const val APP_GROUP_ID = "group.io.github.vgy789.doorDuck"
 private const val APPLE_REFERENCE_EPOCH_SECONDS = 978307200.0
 private const val POLL_ATTEMPTS = 6
+private const val POLL_DELAY_MS = 2_000L
 
 private val dataUriImageRegex = Regex("!\\[[^\\]]*\\]\\((data:image/[^;]+;base64,[^)]+)\\)")
 private val expirationRegex = Regex("(?i)expire\\s+on\\s+(\\d{2}\\.\\d{2}\\.\\d{4})")
@@ -76,6 +78,7 @@ actual object DoorDuckPlatformServices {
         val userId = defaults.stringForKey(KEY_USER_ID).orEmpty()
         val lastSuccessAt = defaults.stringForKey(KEY_LAST_SUCCESS_AT)?.toLongOrNull()
         val expiresAt = defaults.stringForKey(KEY_EXPIRES_AT)?.toLongOrNull()
+        val manualRefreshBlockedUntilMs = defaults.stringForKey(KEY_MANUAL_REFRESH_BLOCKED_UNTIL)?.toLongOrNull()
         val result = defaults.stringForKey(KEY_LAST_CONNECTION_RESULT)?.let {
             runCatching { ConnectionCheckResult.valueOf(it) }.getOrNull()
         }
@@ -88,6 +91,7 @@ actual object DoorDuckPlatformServices {
             userId.isBlank() &&
             result == null &&
             lastSyncError == null &&
+            manualRefreshBlockedUntilMs == null &&
             qrImageBase64.isNullOrBlank() &&
             endpoint == Defaults.defaultEndpoint
         ) {
@@ -99,6 +103,7 @@ actual object DoorDuckPlatformServices {
             userId = userId,
             lastSuccessAtMs = lastSuccessAt,
             expiresAtMs = expiresAt,
+            manualRefreshBlockedUntilMs = manualRefreshBlockedUntilMs,
             lastConnectionResult = result,
             lastSyncError = lastSyncError,
             qrImageBase64 = qrImageBase64,
@@ -112,6 +117,7 @@ actual object DoorDuckPlatformServices {
         defaults.setObject(state.userId, KEY_USER_ID)
         saveOptionalString(defaults, KEY_LAST_SUCCESS_AT, state.lastSuccessAtMs?.toString())
         saveOptionalString(defaults, KEY_EXPIRES_AT, state.expiresAtMs?.toString())
+        saveOptionalString(defaults, KEY_MANUAL_REFRESH_BLOCKED_UNTIL, state.manualRefreshBlockedUntilMs?.toString())
         saveOptionalString(defaults, KEY_LAST_CONNECTION_RESULT, state.lastConnectionResult?.name)
         saveOptionalString(defaults, KEY_LAST_SYNC_ERROR, state.lastSyncError?.name)
         saveOptionalString(defaults, KEY_QR_IMAGE_BASE64, state.qrImageBase64)
@@ -124,6 +130,7 @@ actual object DoorDuckPlatformServices {
         defaults.removeObjectForKey(KEY_USER_ID)
         defaults.removeObjectForKey(KEY_LAST_SUCCESS_AT)
         defaults.removeObjectForKey(KEY_EXPIRES_AT)
+        defaults.removeObjectForKey(KEY_MANUAL_REFRESH_BLOCKED_UNTIL)
         defaults.removeObjectForKey(KEY_LAST_CONNECTION_RESULT)
         defaults.removeObjectForKey(KEY_LAST_SYNC_ERROR)
         defaults.removeObjectForKey(KEY_QR_IMAGE_BASE64)
@@ -362,7 +369,7 @@ private suspend fun pollForQrPayload(
     credentials: Credentials,
     roomId: String,
 ): QrPayload? {
-    repeat(POLL_ATTEMPTS) {
+    repeat(POLL_ATTEMPTS) { attempt ->
         val response = executeJsonRequest(
             url = "$endpoint/im.messages?roomId=$roomId&count=30",
             method = "GET",
@@ -382,7 +389,9 @@ private suspend fun pollForQrPayload(
         if (payload != null) {
             return payload
         }
-        delay(2_000L)
+        if (attempt < POLL_ATTEMPTS - 1) {
+            delay(POLL_DELAY_MS)
+        }
     }
     return null
 }
@@ -407,8 +416,8 @@ private fun extractQrPayload(message: MessageDto): QrPayload? {
 private fun extractExpirationFromMessage(message: String): Long? {
     val rawDate = expirationRegex.find(message)?.groupValues?.getOrNull(1) ?: return null
     val formatter = NSDateFormatter()
-    formatter.setDateFormat("dd.MM.yyyy")
-    val date = formatter.dateFromString(rawDate) ?: return null
+    formatter.setDateFormat("dd.MM.yyyy Z")
+    val date = formatter.dateFromString("$rawDate +0300") ?: return null
     return ((date.timeIntervalSinceReferenceDate + APPLE_REFERENCE_EPOCH_SECONDS) * 1000.0).toLong()
 }
 

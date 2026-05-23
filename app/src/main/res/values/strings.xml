@@ -56,6 +56,7 @@
 
     <string name="info_settings_saved">Settings saved.</string>
     <string name="info_refresh_queued">Refresh request queued.</string>
+    <string name="info_refresh_short_cooldown">Wait a few seconds before requesting QR again.</string>
     <string name="info_refresh_deferred_until">Refresh is delayed by bot cooldown until %1$s.</string>
     <string name="info_wizard_done">Wizard completed, settings are active.</string>
     <string name="toast_qr_refreshed">QR code updated.</string>
@@ -105,5 +106,6 @@
     <string name="widget_no_qr">No QR code yet</string>
     <string name="widget_expired">QR code expired. Open doorDuck to refresh.</string>
     <string name="widget_qr_content_description">QR code</string>
+    <string name="widget_refresh_content_description">Refresh QR code</string>
     <string name="widget_last_error">Last error: %1$s</string>
 </resources>

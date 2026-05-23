@@ -44,6 +44,7 @@ import io.github.vgy789.doorDuck.model.ConnectionCheckResult
 import io.github.vgy789.doorDuck.model.Credentials
 import io.github.vgy789.doorDuck.model.Defaults
 import io.github.vgy789.doorDuck.model.SyncError
+import io.github.vgy789.doorDuck.domain.SyncPolicy
 import io.github.vgy789.doorDuck.platform.DoorDuckPlatformServices
 import io.github.vgy789.doorDuck.platform.PersistedDoorDuckState
 import io.github.vgy789.doorDuck.platform.PlatformQrRefreshResult
@@ -112,6 +113,7 @@ private fun DoorDuckSharedScreen() {
     var connectionCheckPassed by remember { mutableStateOf(false) }
     var lastSuccessAtMs by remember { mutableStateOf<Long?>(null) }
     var expiresAtMs by remember { mutableStateOf<Long?>(null) }
+    var manualRefreshBlockedUntilMs by remember { mutableStateOf<Long?>(null) }
     var lastSyncError by remember { mutableStateOf<SyncError?>(null) }
     var qrImageBase64 by remember { mutableStateOf<String?>(null) }
     var infoMessage by remember { mutableStateOf<String?>(null) }
@@ -125,6 +127,7 @@ private fun DoorDuckSharedScreen() {
             token = stored.authToken
             lastSuccessAtMs = stored.lastSuccessAtMs
             expiresAtMs = stored.expiresAtMs
+            manualRefreshBlockedUntilMs = stored.manualRefreshBlockedUntilMs
             lastConnectionResult = stored.lastConnectionResult
             lastSyncError = stored.lastSyncError
             qrImageBase64 = stored.qrImageBase64
@@ -156,6 +159,7 @@ private fun DoorDuckSharedScreen() {
                     userId = userId,
                     lastSuccessAtMs = lastSuccessAtMs,
                     expiresAtMs = expiresAtMs,
+                    manualRefreshBlockedUntilMs = manualRefreshBlockedUntilMs,
                     lastConnectionResult = result,
                     lastSyncError = lastSyncError,
                     qrImageBase64 = qrImageBase64,
@@ -232,7 +236,14 @@ private fun DoorDuckSharedScreen() {
                 infoMessage = strings.errorTokenRequired
                 return@launch
             }
+            val nowMs = DoorDuckPlatformServices.currentTimeMillis()
+            if (isRefreshingQr || SyncPolicy.isManualRefreshBlocked(manualRefreshBlockedUntilMs, nowMs)) {
+                infoMessage = strings.infoRefreshShortCooldown
+                return@launch
+            }
 
+            manualRefreshBlockedUntilMs = SyncPolicy.nextManualRefreshAllowedAt(nowMs)
+            saveLocalState(lastConnectionResult)
             isRefreshingQr = true
             infoMessage = null
             when (
@@ -643,7 +654,6 @@ private fun HomeDashboardScreen(
             qrImageBase64 = qrImageBase64,
             isRefreshingQr = isRefreshingQr,
             onRefreshQr = onRefreshQr,
-            onRunWizard = onRunWizard,
         )
         DoorDuckWidgetCard(strings = strings, onWidgetAction = onWidgetAction)
         widgetInfoMessage?.let { InfoCard(message = it) }
@@ -666,8 +676,8 @@ private fun HomeDashboardScreen(
         DoorDuckHelpCard(
             strings = strings,
             onOpenTokensPage = onOpenTokensPage,
-            onOpenGithubPage = onOpenGithubPage,
         )
+        DoorDuckCreditsCard(strings = strings, onOpenGithubPage = onOpenGithubPage)
     }
 }
 
@@ -720,8 +730,8 @@ private fun SettingsDashboardScreen(
         DoorDuckHelpCard(
             strings = strings,
             onOpenTokensPage = onOpenTokensPage,
-            onOpenGithubPage = onOpenGithubPage,
         )
+        DoorDuckCreditsCard(strings = strings, onOpenGithubPage = onOpenGithubPage)
     }
 }
 
