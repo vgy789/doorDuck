@@ -13,6 +13,12 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    env:
+      INTENSIVE_MSK_URL: ${{ secrets.INTENSIVE_MSK_URL }}
+      INTENSIVE_NSK_URL: ${{ secrets.INTENSIVE_NSK_URL }}
+      INTENSIVE_KZN_URL: ${{ secrets.INTENSIVE_KZN_URL }}
+      DONATE_PHONE_VALUE: ${{ secrets.DONATE_PHONE_VALUE }}
+      DONATE_CARD_VALUE: ${{ secrets.DONATE_CARD_VALUE }}
 
     steps:
       - name: Checkout
@@ -38,4 +44,3 @@ jobs:
 
       - name: Build debug APK
         run: ./gradlew :app:assembleDebug
-
