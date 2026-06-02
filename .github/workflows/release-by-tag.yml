@@ -12,6 +12,12 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
+    env:
+      INTENSIVE_MSK_URL: ${{ secrets.INTENSIVE_MSK_URL }}
+      INTENSIVE_NSK_URL: ${{ secrets.INTENSIVE_NSK_URL }}
+      INTENSIVE_KZN_URL: ${{ secrets.INTENSIVE_KZN_URL }}
+      DONATE_PHONE_VALUE: ${{ secrets.DONATE_PHONE_VALUE }}
+      DONATE_CARD_VALUE: ${{ secrets.DONATE_CARD_VALUE }}
 
     steps:
       - name: Checkout
@@ -37,6 +43,8 @@ jobs:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          DONATE_PHONE_VALUE: ${{ secrets.DONATE_PHONE_VALUE }}
+          DONATE_CARD_VALUE: ${{ secrets.DONATE_CARD_VALUE }}
         run: |
           set -euo pipefail
           test -n "${CORE_PROGRAM_URL}"
@@ -44,6 +52,8 @@ jobs:
           test -n "${ANDROID_KEYSTORE_PASSWORD}"
           test -n "${ANDROID_KEY_ALIAS}"
           test -n "${ANDROID_KEY_PASSWORD}"
+          test -n "${DONATE_PHONE_VALUE}"
+          test -n "${DONATE_CARD_VALUE}"
 
       - name: Prepare release keystore
         shell: bash
@@ -61,9 +71,8 @@ jobs:
           ANDROID_SIGNING_STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_SIGNING_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_SIGNING_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-          INTENSIVE_MSK_URL: ${{ secrets.INTENSIVE_MSK_URL }}
-          INTENSIVE_NSK_URL: ${{ secrets.INTENSIVE_NSK_URL }}
-          INTENSIVE_KZN_URL: ${{ secrets.INTENSIVE_KZN_URL }}
+          DONATE_PHONE_VALUE: ${{ secrets.DONATE_PHONE_VALUE }}
+          DONATE_CARD_VALUE: ${{ secrets.DONATE_CARD_VALUE }}
         run: ./gradlew :app:assembleRelease
 
       - name: Prepare release assets
