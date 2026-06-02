@@ -9,7 +9,9 @@ import android.graphics.BitmapFactory
 import android.os.Build
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -74,7 +76,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
@@ -89,6 +93,7 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
@@ -241,8 +246,11 @@ private fun WizardContent(
     state: MainUiState,
     viewModel: MainViewModel,
 ) {
+    val context = LocalContext.current
     val uriHandler = LocalUriHandler.current
     val rocketTokensUrl = InputSanitizer.tokensPageUrl(state.wizardEndpoint)
+    val tokensUrlMissingMessage = stringResource(R.string.error_tokens_url_missing)
+    val canOpenTokensPage = rocketTokensUrl.isNotBlank()
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(
             stringResource(R.string.wizard_title),
@@ -281,9 +289,12 @@ private fun WizardContent(
         WizardInstructionBlock(
             credentialsBlob = state.wizardCredentialsBlob,
             onCredentialsBlobChange = viewModel::onWizardCredentialsBlobChange,
+            tokensButtonEnabled = canOpenTokensPage,
             onOpenTokensPage = {
-                if (rocketTokensUrl.isNotBlank()) {
+                if (canOpenTokensPage) {
                     uriHandler.openUri(rocketTokensUrl)
+                } else {
+                    Toast.makeText(context, tokensUrlMissingMessage, Toast.LENGTH_SHORT).show()
                 }
             },
         )
@@ -312,6 +323,7 @@ private fun WizardContent(
 private fun WizardInstructionBlock(
     credentialsBlob: String,
     onCredentialsBlobChange: (String) -> Unit,
+    tokensButtonEnabled: Boolean,
     onOpenTokensPage: () -> Unit,
 ) {
     var exampleExpanded by remember { mutableStateOf(false) }
@@ -334,7 +346,10 @@ private fun WizardInstructionBlock(
                 text = stringResource(R.string.instruction_step_2),
                 highlights = listOf("verter@student.21-school.ru"),
             )
-            TokenLinkButton(onClick = onOpenTokensPage)
+            TokenLinkButton(
+                enabled = tokensButtonEnabled,
+                onClick = onOpenTokensPage,
+            )
             StepText(
                 number = "3",
                 text = stringResource(R.string.instruction_step_3),
@@ -484,11 +499,21 @@ private fun highlightedStepText(
 }
 
 @Composable
-private fun TokenLinkButton(onClick: () -> Unit) {
+private fun TokenLinkButton(
+    enabled: Boolean,
+    onClick: () -> Unit,
+) {
     OutlinedButton(
         onClick = onClick,
+        modifier = Modifier.alpha(if (enabled) 1f else 0.52f),
         shape = RoundedCornerShape(8.dp),
-        border = BorderStroke(1.dp, Color(0xFFE0A81D)),
+        border = BorderStroke(
+            1.dp,
+            if (enabled) Color(0xFFE0A81D) else MaterialTheme.colorScheme.outline.copy(alpha = 0.45f),
+        ),
+        colors = ButtonDefaults.outlinedButtonColors(
+            contentColor = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+        ),
     ) {
         Text(stringResource(R.string.instruction_open_link))
         Box(modifier = Modifier.width(8.dp))
@@ -905,6 +930,7 @@ private fun SettingsDashboard(
         WidgetInstallCard()
         ClearDataCard(onClearData = viewModel::clearAllData)
         CreditsCard()
+        DonateCard()
     }
 }
 
@@ -1391,8 +1417,10 @@ private fun WidgetInstallCard() {
 
 @Composable
 private fun HelpCard(compact: Boolean = false) {
+    val context = LocalContext.current
     val uriHandler = LocalUriHandler.current
     val url = Defaults.rocketTokensUrl
+    val missingUrlMessage = stringResource(R.string.error_tokens_url_missing)
 
     DashboardCard {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -1417,8 +1445,13 @@ private fun HelpCard(compact: Boolean = false) {
 
             if (!compact) {
                 TextButton(
-                    enabled = url.isNotBlank(),
-                    onClick = { uriHandler.openUri(url) },
+                    onClick = {
+                        if (url.isNotBlank()) {
+                            uriHandler.openUri(url)
+                        } else {
+                            Toast.makeText(context, missingUrlMessage, Toast.LENGTH_SHORT).show()
+                        }
+                    },
                 ) {
                     Text(stringResource(R.string.instruction_open_link))
                     Box(modifier = Modifier.width(8.dp))
@@ -1472,6 +1505,163 @@ private fun CreditsCard() {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun DonateCard() {
+    val context = LocalContext.current
+    val isDark = MaterialTheme.colorScheme.background.red < 0.2f
+    val primaryTextColor = if (isDark) Color(0xFFF8F1E4) else MaterialTheme.colorScheme.onSurface
+    val secondaryTextColor = if (isDark) Color(0xFFD7C8B2) else MaterialTheme.colorScheme.onSurfaceVariant
+    val copyContainerColor = if (isDark) Color(0xFF2B241B) else Color(0xFFFFF8EB)
+    val copyBorderColor = if (isDark) Color(0xFF5B4835) else Color(0xFFE8C98E)
+    val copyValueColor = if (isDark) Color(0xFFFFE4B5) else Color(0xFF6D4700)
+    val phoneValue = Defaults.donatePhoneValue
+    val cardValue = Defaults.donateCardValue
+    var expanded by remember { mutableStateOf(false) }
+    val arrowRotation by animateFloatAsState(
+        targetValue = if (expanded) 180f else 0f,
+        label = "donateArrowRotation",
+    )
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 12.dp, bottom = 4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        TextButton(
+            onClick = { expanded = !expanded },
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = stringResource(R.string.donate_toggle_text),
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = primaryTextColor,
+                )
+                Box(modifier = Modifier.width(6.dp))
+                Icon(
+                    imageVector = Icons.Filled.ExpandMore,
+                    contentDescription = null,
+                    modifier = Modifier.graphicsLayer(rotationZ = arrowRotation),
+                    tint = secondaryTextColor,
+                )
+            }
+        }
+
+        AnimatedVisibility(visible = expanded) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .animateContentSize(),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.38f),
+                ),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.18f)),
+            ) {
+                Column(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text(
+                        text = stringResource(R.string.donate_transfer_sbp),
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                    CopyValuePill(
+                        label = stringResource(R.string.donate_phone_label),
+                        value = phoneValue,
+                        containerColor = copyContainerColor,
+                        borderColor = copyBorderColor,
+                        labelColor = secondaryTextColor,
+                        valueColor = copyValueColor,
+                        onClick = {
+                            copyToClipboard(context, "donate_phone", phoneValue)
+                        },
+                    )
+                    CopyValuePill(
+                        label = stringResource(R.string.donate_card_label),
+                        value = cardValue,
+                        containerColor = copyContainerColor,
+                        borderColor = copyBorderColor,
+                        labelColor = secondaryTextColor,
+                        valueColor = copyValueColor,
+                        onClick = {
+                            copyToClipboard(context, "donate_card", cardValue)
+                        },
+                    )
+                    Text(
+                        text = stringResource(R.string.donate_recipient),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = primaryTextColor,
+                        textAlign = TextAlign.Center,
+                    )
+                    Text(
+                        text = stringResource(R.string.donate_disclaimer),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = secondaryTextColor,
+                        textAlign = TextAlign.Center,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CopyValuePill(
+    label: String,
+    value: String,
+    containerColor: Color,
+    borderColor: Color,
+    labelColor: Color,
+    valueColor: Color,
+    onClick: () -> Unit,
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = containerColor),
+        border = BorderStroke(1.dp, borderColor),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = labelColor,
+                    fontWeight = FontWeight.Medium,
+                )
+                Text(
+                    text = value,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = valueColor,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
+            Icon(
+                imageVector = Icons.Filled.ContentCopy,
+                contentDescription = null,
+                tint = valueColor,
+            )
         }
     }
 }

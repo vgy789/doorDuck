@@ -49,7 +49,7 @@
 
     <string name="connection_ok">Соединение успешно проверено.</string>
     <string name="connection_checking">Проверяем соединение…</string>
-    <string name="connection_unauthorized">Неверный Rocket.Chat URL, Id или Token.</string>
+    <string name="connection_unauthorized">Неверные Rocket.Chat credentials: Id или Token.</string>
     <string name="connection_bot_unavailable">Бот недоступен или нет доступа к нему.</string>
     <string name="connection_network_error">Сетевая ошибка при проверке соединения.</string>
     <string name="connection_unknown_error">Неизвестная ошибка при проверке соединения.</string>
@@ -59,6 +59,7 @@
     <string name="error_token_required">Токен обязателен.</string>
     <string name="error_user_id_required">Id обязателен.</string>
     <string name="error_connection_check_required">Перед завершением мастера успешно выполни проверку соединения.</string>
+    <string name="error_tokens_url_missing">URL страницы токенов Rocket не настроен.</string>
 
     <string name="info_settings_saved">Настройки сохранены.</string>
     <string name="info_refresh_queued">Запрос на обновление отправлен.</string>
@@ -137,4 +138,11 @@
     <string name="clear_data_title">Сброс doorDuck</string>
     <string name="clear_data_hint">Удалить token, user Id, QR-изображение, настройки и локальный кэш с этого устройства.</string>
     <string name="clear_data_confirm_hint">Это действие нельзя отменить.</string>
+    <string name="donate_hint">Если захочется, можно угостить автора банкой сгущёнки.</string>
+    <string name="donate_toggle_text">🤍 Купить автору сгущёнку</string>
+    <string name="donate_transfer_sbp">Перевод по СБП</string>
+    <string name="donate_phone_label">Номер</string>
+    <string name="donate_card_label">Карта</string>
+    <string name="donate_recipient">Получатель: Александр Н.</string>
+    <string name="donate_disclaimer">Все функции бесплатны. Донаты добровольны и поддерживают меня в жизнеспособном состоянии.</string>
 </resources>

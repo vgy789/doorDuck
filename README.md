@@ -51,14 +51,7 @@
 
 ## Секреты сборки
 
-Endpoint-адреса не хранятся в исходниках. Для локальной сборки скопируйте `secrets.properties.example` в `secrets.properties` и заполните значения, либо добавьте их в `local.properties`:
-
-```properties
-CORE_PROGRAM_URL=https://core.21-school.ru
-INTENSIVE_MSK_URL=https://msk.21-school.ru
-INTENSIVE_NSK_URL=https://nsk.21-school.ru
-INTENSIVE_KZN_URL=https://kzn.21-school.ru
-```
+Endpoint-адреса не хранятся в исходниках. Для локальной сборки скопируйте `secrets.properties.example` в `secrets.properties` и заполните значения.
 
 ## Архитектура
 
