@@ -49,7 +49,7 @@
 
     <string name="connection_ok">Connection successful.</string>
     <string name="connection_checking">Checking connection…</string>
-    <string name="connection_unauthorized">Invalid Rocket.Chat API, user Id or Token.</string>
+    <string name="connection_unauthorized">Invalid Rocket.Chat credentials: user Id or Token.</string>
     <string name="connection_bot_unavailable">Bot is unavailable or not accessible.</string>
     <string name="connection_network_error">Network error during connection check.</string>
     <string name="connection_unknown_error">Unknown error during connection check.</string>
@@ -59,6 +59,7 @@
     <string name="error_token_required">Token is required.</string>
     <string name="error_user_id_required">User Id is required.</string>
     <string name="error_connection_check_required">Run connection check successfully before finishing setup.</string>
+    <string name="error_tokens_url_missing">Rocket tokens page URL is not configured.</string>
 
     <string name="info_settings_saved">Settings saved.</string>
     <string name="info_refresh_queued">Refresh request queued.</string>
@@ -137,4 +138,11 @@
     <string name="clear_data_title">Reset doorDuck</string>
     <string name="clear_data_hint">Delete token, user Id, QR image, settings, and local cache from this device.</string>
     <string name="clear_data_confirm_hint">This action cannot be undone.</string>
+    <string name="donate_hint">If you feel like it, you can buy the author a can of condensed milk.</string>
+    <string name="donate_toggle_text">🤍 Купить автору сгущёнку</string>
+    <string name="donate_transfer_sbp">SBP transfer</string>
+    <string name="donate_phone_label">Number</string>
+    <string name="donate_card_label">Card</string>
+    <string name="donate_recipient">Recipient: Alexander N.</string>
+    <string name="donate_disclaimer">All app functions are free. Donations are voluntary and help keep me in working condition.</string>
 </resources>
