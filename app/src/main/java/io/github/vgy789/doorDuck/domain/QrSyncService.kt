@@ -1,5 +1,6 @@
 package io.github.vgy789.doorDuck.domain
 
+import io.github.vgy789.doorDuck.config.AndroidEndpointSecrets
 import io.github.vgy789.doorDuck.data.QrImageStore
 import io.github.vgy789.doorDuck.data.SecureCredentialsStore
 import io.github.vgy789.doorDuck.data.SettingsStore
@@ -102,8 +103,9 @@ class QrSyncService(
 
                     val localPath = imageStore.save(bytes)
                     val receivedAt = System.currentTimeMillis()
+                    val autoRefreshAllowed = settings.autoRefreshEnabled && !settings.endpoint.isIntensiveEndpoint()
                     val nextAutoRefreshAt = payload.expiresAtMs
-                        ?.takeIf { settings.autoRefreshEnabled }
+                        ?.takeIf { autoRefreshAllowed }
                         ?.let(SyncPolicy::refreshAtMs)
                     settingsStore.saveSyncSuccess(
                         path = localPath,
@@ -111,7 +113,7 @@ class QrSyncService(
                         expiresAtMs = payload.expiresAtMs,
                         nextAutoRefreshAtMs = nextAutoRefreshAt,
                     )
-                    if (settings.autoRefreshEnabled && payload.expiresAtMs != null) {
+                    if (autoRefreshAllowed && payload.expiresAtMs != null) {
                         workScheduler.scheduleRefreshAtExpiration(payload.expiresAtMs)
                     } else {
                         workScheduler.cancelAutomaticRefresh()
@@ -288,4 +290,8 @@ class QrSyncService(
         val expirationFormatter: DateTimeFormatter =
             DateTimeFormatter.ofPattern("dd.MM.yyyy", Locale.US)
     }
+}
+
+private fun String.isIntensiveEndpoint(): Boolean {
+    return AndroidEndpointSecrets.isIntensiveEndpoint(this)
 }

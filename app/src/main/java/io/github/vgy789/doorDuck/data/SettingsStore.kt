@@ -140,6 +140,12 @@ class SettingsStore(private val context: Context) {
         }
     }
 
+    suspend fun clear() {
+        context.dataStore.edit { mutablePrefs ->
+            mutablePrefs.clear()
+        }
+    }
+
     private fun Preferences.toUserSettings(): UserSettings {
         val endpointValue = this[Keys.endpoint].orEmpty().ifBlank { Defaults.defaultEndpoint }
         return UserSettings(

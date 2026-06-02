@@ -4,6 +4,7 @@ import io.github.vgy789.doorDuck.domain.ConnectionCheckErrorMapper
 import io.github.vgy789.doorDuck.domain.SyncPolicy
 import io.github.vgy789.doorDuck.model.ConnectionCheckResult
 import io.github.vgy789.doorDuck.ui.InputSanitizer
+import io.github.vgy789.doorDuck.ui.RocketCredentialsExtractor
 import io.github.vgy789.doorDuck.ui.WizardStateMachine
 import io.github.vgy789.doorDuck.ui.WizardStep
 import java.io.IOException
@@ -29,33 +30,47 @@ class ExampleUnitTest {
     @Test
     fun endpoint_sanitizer_removesSpaces_keepsTrailingSlash() {
         val endpoint = InputSanitizer.endpoint(" https://example.com/api/v1/ ")
-        assertEquals("https://example.com/api/v1/", endpoint)
+        assertEquals("https://example.com/api/v1", endpoint)
+    }
+
+    @Test
+    fun tokens_page_sanitizer_uses_selected_endpoint() {
+        val url = InputSanitizer.tokensPageUrl(" https://example.com/api/v1/ ")
+        assertEquals("https://example.com/account/tokens", url)
     }
 
     @Test
     fun wizard_state_machine_moves_forward_to_done() {
-        var step = WizardStep.WELCOME
-        step = WizardStateMachine.next(step)
-        step = WizardStateMachine.next(step)
-        step = WizardStateMachine.next(step)
-        step = WizardStateMachine.next(step)
+        val step = WizardStateMachine.next(WizardStep.CREDENTIALS)
         assertEquals(WizardStep.DONE, step)
     }
 
     @Test
     fun wizard_state_machine_moves_backwards() {
-        var step = WizardStep.CHECK_CONNECTION
-        step = WizardStateMachine.previous(step)
-        step = WizardStateMachine.previous(step)
-        assertEquals(WizardStep.USER_ID, step)
+        val step = WizardStateMachine.previous(WizardStep.DONE)
+        assertEquals(WizardStep.CREDENTIALS, step)
     }
 
     @Test
-    fun wizard_cannot_finish_without_connection_check() {
+    fun extractor_finds_token_and_user_id_in_popup_text() {
+        val extracted = RocketCredentialsExtractor.extract(
+            """
+            Идентификатор персонального доступа успешно сгенерирован
+            Токен: pQsvRJbAjqIzdELSbFmFpkptIqotQItZdZ8VnDWi2pL
+            Ваш Id пользователя: it8XJYMhb7cpcJdLx
+            """.trimIndent(),
+        )
+
+        assertEquals("pQsvRJbAjqIzdELSbFmFpkptIqotQItZdZ8VnDWi2pL", extracted.authToken)
+        assertEquals("it8XJYMhb7cpcJdLx", extracted.userId)
+    }
+
+    @Test
+    fun wizard_requires_extracted_credentials() {
         val canProceed = WizardStateMachine.canProceed(
-            step = WizardStep.CHECK_CONNECTION,
-            userId = "uid",
-            token = "token",
+            step = WizardStep.CREDENTIALS,
+            userId = "",
+            token = "",
             connectionCheckPassed = false,
         )
         assertFalse(canProceed)

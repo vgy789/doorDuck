@@ -8,6 +8,7 @@ import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import io.github.vgy789.doorDuck.DoorDuckApp
 import io.github.vgy789.doorDuck.R
+import io.github.vgy789.doorDuck.config.AndroidEndpointSecrets
 import io.github.vgy789.doorDuck.domain.SyncPolicy
 import io.github.vgy789.doorDuck.model.RefreshResult
 
@@ -19,6 +20,13 @@ class QrRefreshWorker(
         val container = DoorDuckApp.container(applicationContext)
         if (inputData.getBoolean(KEY_REFRESH_ONLY_IF_DUE, false)) {
             val settings = container.settingsStore.getSettings()
+            if (settings.endpoint.isIntensiveEndpoint()) {
+                container.settingsStore.setAutoRefreshEnabled(false)
+                container.settingsStore.setNextAutoRefreshAt(null)
+                container.workScheduler.cancelAutomaticRefresh()
+                container.widgetUpdateCoordinator.forceWidgetUpdateNow()
+                return Result.success()
+            }
             val snapshot = container.settingsStore.getSnapshot()
             val shouldRefresh = SyncPolicy.shouldRefreshNow(
                 autoRefreshEnabled = settings.autoRefreshEnabled,
@@ -42,7 +50,8 @@ class QrRefreshWorker(
             is RefreshResult.NotConfigured -> Result.failure()
             is RefreshResult.Failure -> {
                 val isAutomaticAttempt = inputData.getBoolean(KEY_REFRESH_ONLY_IF_DUE, false)
-                val autoRefreshEnabled = container.settingsStore.getSettings().autoRefreshEnabled
+                val settings = container.settingsStore.getSettings()
+                val autoRefreshEnabled = settings.autoRefreshEnabled && !settings.endpoint.isIntensiveEndpoint()
                 val snapshot = container.settingsStore.getSnapshot()
                 val attempt = if (isAutomaticAttempt) {
                     inputData.getInt(KEY_AUTO_RETRY_ATTEMPT, 0)
@@ -98,4 +107,8 @@ class QrRefreshWorker(
         const val KEY_REFRESH_ONLY_IF_DUE = "refresh_only_if_due"
         const val KEY_AUTO_RETRY_ATTEMPT = "auto_retry_attempt"
     }
+}
+
+private fun String.isIntensiveEndpoint(): Boolean {
+    return AndroidEndpointSecrets.isIntensiveEndpoint(this)
 }

@@ -7,7 +7,6 @@ private let qrImageKey = "door_duck.qr_image_base64"
 private let lastSuccessAtKey = "door_duck.last_success_at"
 private let expiresAtKey = "door_duck.expires_at"
 private let lastErrorKey = "door_duck.last_sync_error"
-private let tokenKey = "door_duck.token"
 private let userIdKey = "door_duck.user_id"
 
 struct DoorDuckEntry: TimelineEntry {
@@ -36,7 +35,6 @@ struct DoorDuckProvider: TimelineProvider {
 
     private func loadEntry() -> DoorDuckEntry {
         let defaults = UserDefaults(suiteName: appGroupId) ?? .standard
-        let token = defaults.string(forKey: tokenKey) ?? ""
         let userId = defaults.string(forKey: userIdKey) ?? ""
         let qrImage = decodeImage(defaults.string(forKey: qrImageKey))
         let lastSuccessAt = defaults.string(forKey: lastSuccessAtKey).flatMap(TimeInterval.init).map(Date.init(timeIntervalSince1970:))
@@ -44,7 +42,7 @@ struct DoorDuckProvider: TimelineProvider {
         let lastError = defaults.string(forKey: lastErrorKey)
 
         let visibleQrImage: UIImage?
-        if token.isEmpty || userId.isEmpty || lastError != nil || (expiresAt == nil && lastSuccessAt == nil) {
+        if userId.isEmpty || lastError != nil || (expiresAt == nil && lastSuccessAt == nil) {
             visibleQrImage = nil
         } else {
             visibleQrImage = qrImage

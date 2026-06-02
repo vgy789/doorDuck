@@ -1,10 +1,23 @@
 package io.github.vgy789.doorDuck.model
 
 object Defaults {
+    const val baseEndpoint = DoorDuckSecrets.baseEndpoint
+    const val rocketTokensUrl = DoorDuckSecrets.rocketTokensUrl
+    const val intensiveMskEndpoint = DoorDuckSecrets.intensiveMskEndpoint
+    const val intensiveNskEndpoint = DoorDuckSecrets.intensiveNskEndpoint
+    const val intensiveKznEndpoint = DoorDuckSecrets.intensiveKznEndpoint
+    const val intensiveEndpoint = intensiveMskEndpoint
     const val defaultEndpoint = ""
     const val revealDurationMillis = 60_000L
     const val manualRefreshCooldownMillis = 5_000L
     const val botUsername = "qr-code-generator.bot"
+}
+
+enum class IntensiveCampus(val endpoint: String?) {
+    MOSCOW(Defaults.intensiveMskEndpoint),
+    NOVOSIBIRSK(Defaults.intensiveNskEndpoint),
+    KAZAN(Defaults.intensiveKznEndpoint),
+    OTHER(null),
 }
 
 data class UserSettings(

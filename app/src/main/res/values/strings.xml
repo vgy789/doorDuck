@@ -3,55 +3,61 @@
     <string name="dashboard_subtitle">Rocket.Chat QR Sync</string>
     <string name="widget_description">QR widget for building access</string>
     <string name="widget_hidden_description">QR widget hidden until tap</string>
-    <string name="rocket_tokens_url">https://rocketchat-student.21-school.ru/account/tokens</string>
     <string name="github_url">https://github.com/vgy789/doorDuck</string>
 
     <string name="wizard_title">doorDuck Init Wizard</string>
     <string name="wizard_welcome">Hi! I am doorDuck. I keep your campus QR widget active on the home screen.</string>
-    <string name="wizard_user_id_hint">Enter your Rocket.Chat user ID.</string>
-    <string name="wizard_token_hint">Enter your X-Auth-Token.</string>
+    <string name="wizard_section_endpoint_title">Which endpoint do you need?</string>
+    <string name="wizard_credentials_hint">Open the Rocket.Chat tokens page, create a new Personal Access Token, copy the full text from the popup, and paste it here.</string>
     <string name="wizard_check_hint">Check connection with Rocket.Chat before finishing setup.</string>
     <string name="wizard_done">Setup completed.</string>
 
     <string name="settings_title">doorDuck Settings</string>
-    <string name="endpoint_label">Rocket.Chat API endpoint</string>
+    <string name="endpoint_label">Rocket.Chat URL</string>
+    <string name="credentials_blob_label">Text from Rocket.Chat popup</string>
     <string name="token_label">X-Auth-Token</string>
-    <string name="user_id_label">Rocket.Chat user ID</string>
+    <string name="user_id_label">Rocket.Chat user Id</string>
     <string name="manual_refresh">Refresh QR now</string>
     <string name="app_qr_title">Current QR in app</string>
     <string name="app_qr_empty">No QR code in local storage yet. Tap \"Refresh QR now\".</string>
 
     <string name="action_start">Start</string>
     <string name="action_next">Next</string>
-    <string name="action_back">Back</string>
     <string name="action_finish">Finish setup</string>
     <string name="action_open_settings">Open settings</string>
-    <string name="action_run_wizard">Run wizard</string>
     <string name="action_check_connection">Check connection</string>
-    <string name="action_reset_endpoint">Reset endpoint</string>
+    <string name="action_show_endpoint_settings">Show endpoint settings</string>
+    <string name="action_hide_endpoint_settings">Hide endpoint settings</string>
     <string name="action_clear_token">Clear token</string>
     <string name="action_show_token">Show token</string>
     <string name="action_hide_token">Hide token</string>
+    <string name="action_clear_all_data">Clear app data</string>
+    <string name="action_clear_all_data_confirm">Clear permanently</string>
 
-    <string name="instruction_title">How to get ID and Token</string>
-    <string name="instruction_step_1">1. Open Rocket in browser (not available in mobile app): Avatar → Settings → Personal Access Tokens.</string>
-    <string name="instruction_step_2">2. Enter any token name.</string>
-    <string name="instruction_step_3">3. In dropdown next to Add button choose \"Ignore Two-Factor Authentication\".</string>
-    <string name="instruction_step_4">4. Click Add and copy generated id and Token.</string>
-    <string name="instruction_step_5">5. Do not delete the token, doorDuck will use it for QR updates.</string>
+    <string name="instruction_title">How to get Id and Token</string>
+    <string name="instruction_step_1">1. Open the Rocket.Chat tokens page using the button below (use the web version).</string>
+    <string name="instruction_step_2">2. Sign in. Enter your login in the “verter@student.21-school.ru” format.</string>
+    <string name="instruction_step_3">3. In the empty field, enter any text and tap the blue “Add” button.</string>
+    <string name="instruction_step_4">4. Enter your Rocket.Chat password to confirm.</string>
+    <string name="instruction_step_5">5. Copy the full text from the popup with Token and user Id.</string>
+    <string name="instruction_step_6">6. Paste this text into the field below.</string>
     <string name="instruction_open_link">Open Rocket tokens page</string>
+    <string name="instruction_view_example">View example (screenshot)</string>
+    <string name="instruction_hide_example">Hide example</string>
     <string name="instruction_github_link">GitHub</string>
     <string name="instruction_s21_login">Author: jonnabin</string>
 
     <string name="connection_ok">Connection successful.</string>
-    <string name="connection_unauthorized">Invalid token or user ID.</string>
+    <string name="connection_checking">Checking connection…</string>
+    <string name="connection_unauthorized">Invalid Rocket.Chat API, user Id or Token.</string>
     <string name="connection_bot_unavailable">Bot is unavailable or not accessible.</string>
     <string name="connection_network_error">Network error during connection check.</string>
     <string name="connection_unknown_error">Unknown error during connection check.</string>
 
     <string name="error_endpoint_https">Endpoint must start with https://</string>
+    <string name="error_credentials_blob_required">Paste the text from the popup with Token and user Id.</string>
     <string name="error_token_required">Token is required.</string>
-    <string name="error_user_id_required">User ID is required.</string>
+    <string name="error_user_id_required">User Id is required.</string>
     <string name="error_connection_check_required">Run connection check successfully before finishing setup.</string>
 
     <string name="info_settings_saved">Settings saved.</string>
@@ -59,6 +65,7 @@
     <string name="info_refresh_short_cooldown">Wait a few seconds before requesting QR again.</string>
     <string name="info_refresh_deferred_until">Refresh is delayed by bot cooldown until %1$s.</string>
     <string name="info_wizard_done">Wizard completed, settings are active.</string>
+    <string name="info_all_data_cleared">App data cleared. Configure doorDuck again.</string>
     <string name="toast_qr_refreshed">QR code updated.</string>
     <string name="toast_qr_refresh_failed">QR update failed.</string>
     <string name="status_qr_fresh">QR is active</string>
@@ -66,7 +73,7 @@
     <string name="status_qr_needs_attention">Sync attention required</string>
     <string name="status_qr_missing">QR has not been loaded</string>
     <string name="connection_section_title">Connection</string>
-    <string name="connection_section_hint">Manage endpoint, user ID, and token here.</string>
+    <string name="connection_section_hint">Manage endpoint, user Id, and Token here.</string>
     <string name="token_help_body">Open the Rocket.Chat tokens page and create the required credentials.</string>
 
     <string name="status_title">Status</string>
@@ -78,6 +85,7 @@
     <string name="status_last_error">Last error: %1$s</string>
     <string name="status_toggle_details">Show or hide status details</string>
     <string name="status_none">none</string>
+    <string name="status_not_found">not found</string>
     <string name="status_never">never</string>
     <string name="status_unknown">unknown</string>
     <string name="sync_error_not_configured">not configured</string>
@@ -94,6 +102,7 @@
     <string name="max_brightness_label">Maximum brightness</string>
     <string name="max_brightness_hint">Launch the app with maximum screen brightness.</string>
     <string name="widget_install_hint">You can add the widget from here, or manually via your launcher.</string>
+    <string name="wizard_launch_hint">Open the wizard to change endpoint, token, or user ID.</string>
     <string name="widget_install_action">Add widget</string>
     <string name="widget_install_step_1">1. Common way: long-press empty space on home screen → Widgets.</string>
     <string name="widget_install_step_2">2. If your firmware blocks this gesture, open app search/menu and find the Widgets section.</string>
@@ -102,7 +111,7 @@
     <string name="widget_pin_not_supported">Automatic widget pin is not supported on this launcher. Add it manually.</string>
     <string name="widget_pin_failed">Could not open widget pin dialog. Add widget manually from launcher widgets list.</string>
 
-    <string name="widget_not_configured">Open doorDuck app and configure endpoint/token/user ID.</string>
+    <string name="widget_not_configured">Open doorDuck app and configure endpoint/token/user Id.</string>
     <string name="widget_loading">Updating QR code…</string>
     <string name="widget_error">Last update failed</string>
     <string name="widget_hidden_tap_to_show">QR hidden. Tap widget to show.</string>
@@ -111,4 +120,21 @@
     <string name="widget_qr_content_description">QR code</string>
     <string name="widget_refresh_content_description">Refresh QR code</string>
     <string name="widget_last_error">Last error: %1$s</string>
+    <string name="detected_credentials_title">Detected values</string>
+    <string name="detected_user_id_value">User Id: %1$s</string>
+    <string name="detected_token_value">Token: %1$s</string>
+    <string name="endpoint_preset_base">Base</string>
+    <string name="endpoint_preset_intensive">Intensive</string>
+    <string name="endpoint_preset_custom">Other</string>
+    <string name="endpoint_other_campus_placeholder">https://ekb-rocket.21-school.ru</string>
+    <string name="intensive_campus_moscow">Moscow</string>
+    <string name="intensive_campus_novosibirsk">Novosibirsk</string>
+    <string name="intensive_campus_kazan">Kazan</string>
+    <string name="intensive_campus_other">Other campus</string>
+    <string name="endpoint_custom_hint">Where to find it? Sign in to the campus Rocket.Chat in a browser and copy the address from the address bar, for example rocket.21-school.ru. Or open Rocket.Chat mobile settings: the address is shown in Server.</string>
+    <string name="endpoint_view_browser_example">Browser example</string>
+    <string name="endpoint_view_mobile_example">App example</string>
+    <string name="clear_data_title">Reset doorDuck</string>
+    <string name="clear_data_hint">Delete token, user Id, QR image, settings, and local cache from this device.</string>
+    <string name="clear_data_confirm_hint">This action cannot be undone.</string>
 </resources>
