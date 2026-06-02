@@ -15,21 +15,54 @@ import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import kotlinx.cinterop.ExperimentalForeignApi
+import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.alloc
+import kotlinx.cinterop.convert
+import kotlinx.cinterop.get
 import kotlinx.cinterop.memScoped
 import kotlinx.cinterop.ptr
+import kotlinx.cinterop.readBytes
+import kotlinx.cinterop.reinterpret
+import kotlinx.cinterop.usePinned
 import kotlinx.coroutines.delay
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import platform.CoreFoundation.CFDataCreate
+import platform.CoreFoundation.CFDataGetBytePtr
+import platform.CoreFoundation.CFDataGetLength
+import platform.CoreFoundation.CFDictionaryCreateMutable
+import platform.CoreFoundation.CFDictionarySetValue
+import platform.CoreFoundation.CFTypeRefVar
+import platform.CoreFoundation.CFDictionaryRef
+import platform.CoreFoundation.CFMutableDictionaryRef
+import platform.CoreFoundation.CFStringCreateWithCString
+import platform.CoreFoundation.kCFBooleanTrue
+import platform.CoreFoundation.kCFStringEncodingUTF8
 import platform.Foundation.NSDate
 import platform.Foundation.NSDateFormatter
 import platform.Foundation.NSUserDefaults
+import platform.Security.SecItemAdd
+import platform.Security.SecItemCopyMatching
+import platform.Security.SecItemDelete
+import platform.Security.SecItemUpdate
+import platform.Security.errSecItemNotFound
+import platform.Security.errSecSuccess
+import platform.Security.kSecAttrAccount
+import platform.Security.kSecAttrAccessible
+import platform.Security.kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+import platform.Security.kSecAttrService
+import platform.Security.kSecClass
+import platform.Security.kSecClassGenericPassword
+import platform.Security.kSecMatchLimit
+import platform.Security.kSecMatchLimitOne
+import platform.Security.kSecReturnData
+import platform.Security.kSecValueData
 import platform.posix.gettimeofday
 import platform.posix.timeval
 
 private const val KEY_ENDPOINT = "door_duck.endpoint"
-private const val KEY_TOKEN = "door_duck.token"
+private const val LEGACY_KEY_TOKEN = "door_duck.token"
 private const val KEY_USER_ID = "door_duck.user_id"
 private const val KEY_LAST_SUCCESS_AT = "door_duck.last_success_at"
 private const val KEY_EXPIRES_AT = "door_duck.expires_at"
@@ -38,6 +71,8 @@ private const val KEY_LAST_CONNECTION_RESULT = "door_duck.last_connection_result
 private const val KEY_LAST_SYNC_ERROR = "door_duck.last_sync_error"
 private const val KEY_QR_IMAGE_BASE64 = "door_duck.qr_image_base64"
 private const val APP_GROUP_ID = "group.io.github.vgy789.doorDuck"
+private const val KEYCHAIN_SERVICE = "io.github.vgy789.doorDuck"
+private const val KEYCHAIN_TOKEN_ACCOUNT = "rocket_chat_auth_token"
 private const val APPLE_REFERENCE_EPOCH_SECONDS = 978307200.0
 private const val POLL_ATTEMPTS = 6
 private const val POLL_DELAY_MS = 2_000L
@@ -74,7 +109,7 @@ actual object DoorDuckPlatformServices {
     actual suspend fun loadPersistedState(): PersistedDoorDuckState? {
         val defaults = sharedDefaults()
         val endpoint = defaults.stringForKey(KEY_ENDPOINT)?.takeIf { it.isNotBlank() } ?: Defaults.defaultEndpoint
-        val token = defaults.stringForKey(KEY_TOKEN).orEmpty()
+        val token = loadAuthToken(defaults)
         val userId = defaults.stringForKey(KEY_USER_ID).orEmpty()
         val lastSuccessAt = defaults.stringForKey(KEY_LAST_SUCCESS_AT)?.toLongOrNull()
         val expiresAt = defaults.stringForKey(KEY_EXPIRES_AT)?.toLongOrNull()
@@ -113,7 +148,8 @@ actual object DoorDuckPlatformServices {
     actual suspend fun savePersistedState(state: PersistedDoorDuckState) {
         val defaults = sharedDefaults()
         defaults.setObject(state.endpoint, KEY_ENDPOINT)
-        defaults.setObject(state.authToken, KEY_TOKEN)
+        saveAuthToken(state.authToken)
+        defaults.removeObjectForKey(LEGACY_KEY_TOKEN)
         defaults.setObject(state.userId, KEY_USER_ID)
         saveOptionalString(defaults, KEY_LAST_SUCCESS_AT, state.lastSuccessAtMs?.toString())
         saveOptionalString(defaults, KEY_EXPIRES_AT, state.expiresAtMs?.toString())
@@ -126,7 +162,8 @@ actual object DoorDuckPlatformServices {
     actual suspend fun clearPersistedState() {
         val defaults = sharedDefaults()
         defaults.removeObjectForKey(KEY_ENDPOINT)
-        defaults.removeObjectForKey(KEY_TOKEN)
+        defaults.removeObjectForKey(LEGACY_KEY_TOKEN)
+        deleteAuthToken()
         defaults.removeObjectForKey(KEY_USER_ID)
         defaults.removeObjectForKey(KEY_LAST_SUCCESS_AT)
         defaults.removeObjectForKey(KEY_EXPIRES_AT)
@@ -440,6 +477,77 @@ private fun saveOptionalString(
 private fun sharedDefaults(): NSUserDefaults {
     return NSUserDefaults(suiteName = APP_GROUP_ID)
 }
+
+@OptIn(ExperimentalForeignApi::class)
+private fun loadAuthToken(defaults: NSUserDefaults): String {
+    val token = readKeychainString().orEmpty()
+    if (token.isNotBlank()) {
+        defaults.removeObjectForKey(LEGACY_KEY_TOKEN)
+        return token
+    }
+
+    val legacyToken = defaults.stringForKey(LEGACY_KEY_TOKEN).orEmpty()
+    if (legacyToken.isNotBlank()) {
+        saveAuthToken(legacyToken)
+        defaults.removeObjectForKey(LEGACY_KEY_TOKEN)
+    }
+    return legacyToken
+}
+
+@OptIn(ExperimentalForeignApi::class)
+private fun saveAuthToken(token: String) {
+    if (token.isBlank()) {
+        deleteAuthToken()
+        return
+    }
+
+    val tokenBytes = token.encodeToByteArray()
+    val data = tokenBytes.usePinned { pinned ->
+        CFDataCreate(null, pinned.addressOf(0).reinterpret(), tokenBytes.size.convert()) ?: return
+    }
+    val query = keychainQuery()
+    val attributes = CFDictionaryCreateMutable(null, 0, null, null)
+    CFDictionarySetValue(attributes, kSecValueData, data)
+
+    val updateStatus = SecItemUpdate(query, attributes)
+    if (updateStatus == errSecSuccess) return
+
+    CFDictionarySetValue(query, kSecValueData, data)
+    SecItemAdd(query, null)
+}
+
+@OptIn(ExperimentalForeignApi::class)
+private fun deleteAuthToken() {
+    SecItemDelete(keychainQuery())
+}
+
+@OptIn(ExperimentalForeignApi::class)
+private fun readKeychainString(): String? = memScoped {
+    val query = keychainQuery()
+    CFDictionarySetValue(query, kSecReturnData, kCFBooleanTrue)
+    CFDictionarySetValue(query, kSecMatchLimit, kSecMatchLimitOne)
+
+    val result = alloc<CFTypeRefVar>()
+    val status = SecItemCopyMatching(query, result.ptr)
+    if (status == errSecItemNotFound) return@memScoped null
+    if (status != errSecSuccess) return@memScoped null
+    val data = result.ptr[0] ?: return@memScoped null
+    val bytes = CFDataGetBytePtr(data.reinterpret()) ?: return@memScoped null
+    bytes.readBytes(CFDataGetLength(data.reinterpret()).toInt()).decodeToString()
+}
+
+@OptIn(ExperimentalForeignApi::class)
+private fun keychainQuery(): CFMutableDictionaryRef {
+    val query = CFDictionaryCreateMutable(null, 0, null, null)!!
+    CFDictionarySetValue(query, kSecClass, kSecClassGenericPassword)
+    CFDictionarySetValue(query, kSecAttrService, cfString(KEYCHAIN_SERVICE))
+    CFDictionarySetValue(query, kSecAttrAccount, cfString(KEYCHAIN_TOKEN_ACCOUNT))
+    CFDictionarySetValue(query, kSecAttrAccessible, kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly)
+    return query
+}
+
+@OptIn(ExperimentalForeignApi::class)
+private fun cfString(value: String) = CFStringCreateWithCString(null, value, kCFStringEncodingUTF8)
 
 private class SyncFailure(val error: SyncError) : RuntimeException()
 

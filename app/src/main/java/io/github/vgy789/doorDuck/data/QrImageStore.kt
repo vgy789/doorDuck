@@ -19,4 +19,9 @@ class QrImageStore(context: Context) {
         temp.renameTo(targetFile)
         return targetFile.absolutePath
     }
+
+    fun clear() {
+        storageDir.deleteRecursively()
+        storageDir.mkdirs()
+    }
 }

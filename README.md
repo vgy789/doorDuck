@@ -10,6 +10,9 @@
 
 `doorDuck` — мультиплатформенное приложение для School 21, которое получает QR для входа через Rocket.Chat API, сохраняет его локально и показывает в приложении и виджете на Android / iOS.
 
+> [!IMPORTANT]
+> `doorDuck` — неофициальный клиент. Проект не связан с АНО «Школа 21», Сбером или Rocket.Chat. Пользователь самостоятельно отвечает за соблюдение правил своей организации, договоров, политик информационной безопасности и применимого законодательства.
+
 ## Скачать
 
 [Latest Release](https://github.com/vgy789/doorDuck/releases/latest) | [Download APK](https://github.com/vgy789/doorDuck/releases/latest/download/doorDuck-latest.apk) | [Download SHA256](https://github.com/vgy789/doorDuck/releases/latest/download/doorDuck-latest.apk.sha256)
@@ -22,6 +25,40 @@
 - Проверка доступа к Rocket.Chat и валидация учётных данных.
 - Автообновление QR перед истечением срока действия.
 - Масштабируемый виджет на Android и iOS.
+
+## Скриншоты
+
+<table>
+  <tr>
+    <td align="center">
+      <img src="docs/images/screenshots/authorization.jpg" alt="Authorization screen" width="280" />
+    </td>
+    <td align="center">
+      <img src="docs/images/screenshots/main_page.jpg" alt="Main page screen" width="280" />
+    </td>
+    <td align="center">
+      <img src="docs/images/screenshots/home_screen.jpg" alt="Main page screen" width="280" />
+    </td>
+  </tr>
+</table>
+
+## Приватность и безопасность
+
+Проект является **неофициальным** и разрабатывается независимо. Перед использованием обязательно ознакомьтесь с положениями [Политики конфиденциальности](./.github/PRIVACY.md) и [Инструкциями по безопасности](./.github/SECURITY.md). 
+
+- Приложение не использует сервер автора: запросы отправляются с устройства пользователя напрямую в выбранный Rocket.Chat endpoint.
+- Не публикуйте свои `X-Auth-Token`, user ID, QR-коды, скриншоты с приватными данными или логи.
+
+## Секреты сборки
+
+Endpoint-адреса не хранятся в исходниках. Для локальной сборки скопируйте `secrets.properties.example` в `secrets.properties` и заполните значения, либо добавьте их в `local.properties`:
+
+```properties
+CORE_PROGRAM_URL=https://core.21-school.ru
+INTENSIVE_MSK_URL=https://msk.21-school.ru
+INTENSIVE_NSK_URL=https://nsk.21-school.ru
+INTENSIVE_KZN_URL=https://kzn.21-school.ru
+```
 
 ## Архитектура
 

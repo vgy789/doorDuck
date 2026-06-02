@@ -6,9 +6,11 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import io.github.vgy789.doorDuck.AppContainer
 import io.github.vgy789.doorDuck.R
+import io.github.vgy789.doorDuck.config.AndroidEndpointSecrets
 import io.github.vgy789.doorDuck.model.ConnectionCheckResult
 import io.github.vgy789.doorDuck.model.Credentials
 import io.github.vgy789.doorDuck.model.Defaults
+import io.github.vgy789.doorDuck.model.IntensiveCampus
 import io.github.vgy789.doorDuck.model.SyncError
 import io.github.vgy789.doorDuck.domain.SyncPolicy
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -16,6 +18,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.io.File
 import java.text.DateFormat
 import java.util.Date
 
@@ -24,10 +27,23 @@ enum class ScreenMode {
     SETTINGS,
 }
 
+enum class EndpointPreset {
+    BASE,
+    INTENSIVE,
+    CUSTOM,
+}
+
 data class MainUiState(
     val mode: ScreenMode = ScreenMode.WIZARD,
-    val wizardStep: WizardStep = WizardStep.WELCOME,
+    val wizardStep: WizardStep = WizardStep.CREDENTIALS,
     val endpoint: String = Defaults.defaultEndpoint,
+    val endpointPreset: EndpointPreset = EndpointPreset.BASE,
+    val wizardEndpoint: String = Defaults.defaultEndpoint,
+    val wizardEndpointPreset: EndpointPreset = EndpointPreset.BASE,
+    val wizardIntensiveCampus: IntensiveCampus = IntensiveCampus.MOSCOW,
+    val wizardCredentialsBlob: String = "",
+    val wizardAuthToken: String = "",
+    val wizardUserId: String = "",
     val authToken: String = "",
     val userId: String = "",
     val hasStoredCredentials: Boolean = false,
@@ -63,6 +79,7 @@ class MainViewModel(
                     if (
                         state.hasCredentials &&
                         state.settings.autoRefreshEnabled &&
+                        !state.settings.endpoint.isIntensiveEndpoint() &&
                         !state.snapshot.isSyncInProgress &&
                         !dueRefreshQueued &&
                         SyncPolicy.shouldRefreshNow(
@@ -102,7 +119,14 @@ class MainViewModel(
                             initialized = true
                             base.copy(
                                 mode = if (state.hasCredentials) ScreenMode.SETTINGS else ScreenMode.WIZARD,
-                                wizardStep = if (state.hasCredentials) WizardStep.DONE else WizardStep.WELCOME,
+                                wizardStep = if (state.hasCredentials) WizardStep.DONE else WizardStep.CREDENTIALS,
+                                endpointPreset = base.endpoint.toEndpointPreset(),
+                                wizardEndpoint = base.endpoint,
+                                wizardEndpointPreset = base.endpoint.toEndpointPreset(),
+                                wizardIntensiveCampus = base.endpoint.toIntensiveCampus(),
+                                wizardCredentialsBlob = "",
+                                wizardAuthToken = "",
+                                wizardUserId = "",
                                 authToken = InputSanitizer.noWhitespace(stored?.authToken.orEmpty()),
                                 userId = InputSanitizer.noWhitespace(stored?.userId.orEmpty()),
                             )
@@ -112,23 +136,17 @@ class MainViewModel(
         }
     }
 
-    fun openWizard() {
-        _uiState.update {
-            it.copy(
-                mode = ScreenMode.WIZARD,
-                wizardStep = WizardStep.WELCOME,
-                connectionCheckPassed = false,
-                lastConnectionCheckResult = null,
-                infoMessage = null,
-            )
-        }
-    }
-
     fun openSettings() {
         _uiState.update {
             it.copy(
                 mode = ScreenMode.SETTINGS,
                 wizardStep = WizardStep.DONE,
+                wizardEndpoint = it.endpoint,
+                wizardEndpointPreset = it.endpoint.toEndpointPreset(),
+                wizardIntensiveCampus = it.endpoint.toIntensiveCampus(),
+                wizardCredentialsBlob = "",
+                wizardAuthToken = "",
+                wizardUserId = "",
                 infoMessage = null,
             )
         }
@@ -136,47 +154,10 @@ class MainViewModel(
 
     fun wizardNext() {
         val state = uiState.value
-        val canProceed = WizardStateMachine.canProceed(
-            step = state.wizardStep,
-            userId = state.userId,
-            token = state.authToken,
-            connectionCheckPassed = state.connectionCheckPassed,
-        )
 
         when (state.wizardStep) {
-            WizardStep.WELCOME -> {
-                _uiState.update { it.copy(wizardStep = WizardStateMachine.next(it.wizardStep), infoMessage = null) }
-            }
-
-            WizardStep.USER_ID -> {
-                if (!canProceed) {
-                    setInfo(R.string.error_user_id_required)
-                    return
-                }
-                _uiState.update { it.copy(wizardStep = WizardStateMachine.next(it.wizardStep), infoMessage = null) }
-            }
-
-            WizardStep.TOKEN -> {
-                if (!canProceed) {
-                    setInfo(R.string.error_token_required)
-                    return
-                }
-                _uiState.update {
-                    it.copy(
-                        wizardStep = WizardStateMachine.next(it.wizardStep),
-                        connectionCheckPassed = false,
-                        lastConnectionCheckResult = null,
-                        infoMessage = null,
-                    )
-                }
-            }
-
-            WizardStep.CHECK_CONNECTION -> {
-                if (!canProceed) {
-                    setInfo(R.string.error_connection_check_required)
-                    return
-                }
-                completeWizard()
+            WizardStep.CREDENTIALS -> {
+                finishWizardWithConnectionCheck()
             }
 
             WizardStep.DONE -> {
@@ -197,17 +178,36 @@ class MainViewModel(
     fun onEndpointChange(value: String) {
         _uiState.update {
             it.copy(
-                endpoint = InputSanitizer.endpoint(value),
+                endpoint = value,
+                endpointPreset = EndpointPreset.CUSTOM,
                 connectionCheckPassed = false,
                 lastConnectionCheckResult = null,
             )
         }
     }
 
-    fun resetEndpointToDefault() {
+    fun onWizardCredentialsBlobChange(value: String) {
+        val extracted = RocketCredentialsExtractor.extract(value)
         _uiState.update {
             it.copy(
-                endpoint = Defaults.defaultEndpoint,
+                wizardCredentialsBlob = value.trim(),
+                wizardAuthToken = InputSanitizer.noWhitespace(extracted.authToken.orEmpty()),
+                wizardUserId = InputSanitizer.noWhitespace(extracted.userId.orEmpty()),
+                connectionCheckPassed = false,
+                lastConnectionCheckResult = null,
+            )
+        }
+    }
+
+    fun onWizardEndpointChange(value: String) {
+        _uiState.update {
+            it.copy(
+                wizardEndpoint = value,
+                wizardEndpointPreset = if (it.wizardEndpointPreset == EndpointPreset.INTENSIVE) {
+                    EndpointPreset.INTENSIVE
+                } else {
+                    EndpointPreset.CUSTOM
+                },
                 connectionCheckPassed = false,
                 lastConnectionCheckResult = null,
             )
@@ -288,6 +288,45 @@ class MainViewModel(
         }
     }
 
+    fun selectWizardEndpointPreset(preset: EndpointPreset) {
+        val intensiveCampus = if (AndroidEndpointSecrets.hasFixedIntensiveEndpoints) {
+            IntensiveCampus.MOSCOW
+        } else {
+            IntensiveCampus.OTHER
+        }
+        val endpoint = when (preset) {
+            EndpointPreset.BASE -> Defaults.baseEndpoint
+            EndpointPreset.INTENSIVE -> AndroidEndpointSecrets.endpointFor(intensiveCampus) ?: Defaults.baseEndpoint
+            EndpointPreset.CUSTOM -> ""
+        }
+        _uiState.update {
+            it.copy(
+                wizardEndpoint = endpoint,
+                wizardEndpointPreset = preset,
+                wizardIntensiveCampus = if (preset == EndpointPreset.INTENSIVE) {
+                    intensiveCampus
+                } else {
+                    it.wizardIntensiveCampus
+                },
+                connectionCheckPassed = false,
+                lastConnectionCheckResult = null,
+            )
+        }
+    }
+
+    fun selectWizardIntensiveCampus(campus: IntensiveCampus) {
+        val endpoint = AndroidEndpointSecrets.endpointFor(campus).orEmpty()
+        _uiState.update {
+            it.copy(
+                wizardEndpoint = endpoint,
+                wizardEndpointPreset = EndpointPreset.INTENSIVE,
+                wizardIntensiveCampus = campus,
+                connectionCheckPassed = false,
+                lastConnectionCheckResult = null,
+            )
+        }
+    }
+
     fun refreshNow() {
         viewModelScope.launch {
             val state = uiState.value
@@ -325,6 +364,13 @@ class MainViewModel(
 
     fun setAutoRefreshEnabled(enabled: Boolean) {
         viewModelScope.launch {
+            if (uiState.value.endpoint.isIntensiveEndpoint() && enabled) {
+                appContainer.settingsStore.setAutoRefreshEnabled(false)
+                appContainer.settingsStore.setNextAutoRefreshAt(null)
+                appContainer.workScheduler.cancelAutomaticRefresh()
+                _uiState.update { it.copy(autoRefreshEnabled = false, nextAutoRefreshAtMs = null) }
+                return@launch
+            }
             appContainer.settingsStore.setAutoRefreshEnabled(enabled)
             if (!enabled) {
                 appContainer.settingsStore.setNextAutoRefreshAt(null)
@@ -368,19 +414,65 @@ class MainViewModel(
         }
     }
 
-    private fun completeWizard() {
+    fun clearAllData() {
+        viewModelScope.launch {
+            appContainer.workScheduler.cancelAllRefreshWork()
+            appContainer.settingsStore.clear()
+            appContainer.credentialsStore.clear()
+            File(appContainer.appContext.applicationInfo.dataDir, "shared_prefs")
+                .listFiles()
+                ?.forEach { it.deleteRecursively() }
+            appContainer.imageStore.clear()
+            appContainer.appContext.cacheDir.deleteRecursively()
+            appContainer.appContext.cacheDir.mkdirs()
+            appContainer.widgetUpdateCoordinator.forceWidgetUpdateNow()
+            _uiState.value = MainUiState(
+                mode = ScreenMode.WIZARD,
+                infoMessage = appContainer.appContext.getString(R.string.info_all_data_cleared),
+            )
+            initialized = true
+            dueRefreshQueued = false
+        }
+    }
+
+    private fun finishWizardWithConnectionCheck() {
         viewModelScope.launch {
             val state = uiState.value
-            val endpoint = InputSanitizer.endpoint(state.endpoint)
-            if (!state.connectionCheckPassed) {
-                setInfo(R.string.error_connection_check_required)
+            val endpoint = InputSanitizer.endpoint(state.wizardEndpoint)
+            val token = InputSanitizer.noWhitespace(state.wizardAuthToken)
+            val userId = InputSanitizer.noWhitespace(state.wizardUserId)
+
+            if (!endpoint.startsWith("https://")) {
+                setInfo(R.string.error_endpoint_https)
+                return@launch
+            }
+            if (token.isBlank() || userId.isBlank()) {
+                setInfo(R.string.error_credentials_blob_required)
+                return@launch
+            }
+
+            _uiState.update { it.copy(isConnectionCheckInProgress = true, infoMessage = null) }
+            val result = appContainer.syncService.verifyCredentialsAndBotAccess(
+                endpoint = endpoint,
+                credentials = Credentials(authToken = token, userId = userId),
+            )
+            if (result != ConnectionCheckResult.SUCCESS) {
+                _uiState.update {
+                    it.copy(
+                        isConnectionCheckInProgress = false,
+                        lastConnectionCheckResult = result,
+                        connectionCheckPassed = false,
+                        infoMessage = connectionResultMessage(result),
+                    )
+                }
                 return@launch
             }
 
             saveAll(
                 endpoint = endpoint,
-                token = state.authToken,
-                userId = state.userId,
+                token = token,
+                userId = userId,
+                forceAutoRefreshDisabled = state.wizardEndpointPreset == EndpointPreset.INTENSIVE,
             )
             appContainer.settingsStore.setManualRefreshBlockedUntil(
                 SyncPolicy.nextManualRefreshAllowedAt(),
@@ -392,7 +484,10 @@ class MainViewModel(
                 it.copy(
                     mode = ScreenMode.SETTINGS,
                     wizardStep = WizardStep.DONE,
-                    infoMessage = appContainer.appContext.getString(R.string.info_wizard_done),
+                    isConnectionCheckInProgress = false,
+                    lastConnectionCheckResult = ConnectionCheckResult.SUCCESS,
+                    connectionCheckPassed = true,
+                    infoMessage = null,
                 )
             }
         }
@@ -402,17 +497,26 @@ class MainViewModel(
         endpoint: String,
         token: String,
         userId: String,
+        forceAutoRefreshDisabled: Boolean = false,
     ) {
         val normalizedEndpoint = InputSanitizer.endpoint(endpoint)
         val normalizedToken = InputSanitizer.noWhitespace(token)
         val normalizedUserId = InputSanitizer.noWhitespace(userId)
-        val autoRefreshEnabled = uiState.value.autoRefreshEnabled
+        val autoRefreshEnabled = uiState.value.autoRefreshEnabled &&
+            !forceAutoRefreshDisabled &&
+            !normalizedEndpoint.isIntensiveEndpoint()
         appContainer.settingsStore.updateCredentialsSettings(normalizedEndpoint, autoRefreshEnabled)
+        if (!autoRefreshEnabled) {
+            appContainer.settingsStore.setNextAutoRefreshAt(null)
+            appContainer.workScheduler.cancelAutomaticRefresh()
+        }
         appContainer.credentialsStore.save(normalizedToken, normalizedUserId)
         appContainer.widgetUpdateCoordinator.forceWidgetUpdateNow()
         _uiState.update {
             it.copy(
                 endpoint = normalizedEndpoint,
+                endpointPreset = if (forceAutoRefreshDisabled) EndpointPreset.INTENSIVE else normalizedEndpoint.toEndpointPreset(),
+                wizardCredentialsBlob = "",
                 authToken = normalizedToken,
                 userId = normalizedUserId,
                 hasStoredCredentials = true,
@@ -437,6 +541,23 @@ class MainViewModel(
         }
         return appContainer.appContext.getString(resId)
     }
+}
+
+private fun String.isIntensiveEndpoint(): Boolean {
+    return AndroidEndpointSecrets.isIntensiveEndpoint(this)
+}
+
+private fun String.toEndpointPreset(): EndpointPreset {
+    val endpoint = InputSanitizer.endpoint(this)
+    return when {
+        endpoint == Defaults.baseEndpoint -> EndpointPreset.BASE
+        endpoint.isIntensiveEndpoint() -> EndpointPreset.INTENSIVE
+        else -> EndpointPreset.CUSTOM
+    }
+}
+
+private fun String.toIntensiveCampus(): IntensiveCampus {
+    return AndroidEndpointSecrets.campusFor(this)
 }
 
 class MainViewModelFactory(

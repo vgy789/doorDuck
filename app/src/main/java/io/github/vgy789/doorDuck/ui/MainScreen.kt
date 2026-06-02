@@ -8,9 +8,13 @@ import android.content.Context
 import android.graphics.BitmapFactory
 import android.os.Build
 import android.widget.Toast
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,32 +23,32 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.ui.draw.clip
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
+import androidx.compose.material.icons.filled.ArrowOutward
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Language
-import androidx.compose.material.icons.filled.OpenInFull
 import androidx.compose.material.icons.filled.PersonOutline
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Widgets
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -55,12 +59,14 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
@@ -68,32 +74,45 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.vgy789.doorDuck.R
+import io.github.vgy789.doorDuck.config.AndroidEndpointSecrets
 import io.github.vgy789.doorDuck.domain.SyncPolicy
+import io.github.vgy789.doorDuck.model.Defaults
+import io.github.vgy789.doorDuck.model.IntensiveCampus
 import io.github.vgy789.doorDuck.model.SyncError
 import io.github.vgy789.doorDuck.widget.QrGlanceWidgetReceiver
 import java.text.DateFormat
 import java.util.Date
 import kotlinx.coroutines.delay
 
+private val DashboardActionButtonHeight = 48.dp
+private val DashboardActionButtonShape = RoundedCornerShape(14.dp)
+
 @Composable
 fun MainScreen(viewModel: MainViewModel) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    var connectionExpanded by remember(state.mode) { mutableStateOf(state.mode == ScreenMode.SETTINGS) }
-    var showQrDialog by remember { mutableStateOf(false) }
+    val scrollState = rememberScrollState()
     val refreshCooldownNowMs by produceState(
         initialValue = System.currentTimeMillis(),
         key1 = state.manualRefreshBlockedUntilMs,
@@ -109,6 +128,9 @@ fun MainScreen(viewModel: MainViewModel) {
             }
         }
     }
+    LaunchedEffect(state.mode) {
+        scrollState.animateScrollTo(0)
+    }
 
     Scaffold(containerColor = Color.Transparent) { padding ->
         Column(
@@ -117,14 +139,14 @@ fun MainScreen(viewModel: MainViewModel) {
                 .background(doorDuckBackgroundBrush())
                 .padding(padding)
                 .padding(horizontal = 18.dp, vertical = 16.dp)
-                .verticalScroll(rememberScrollState()),
+                .imePadding()
+                .verticalScroll(scrollState),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             HeaderCard(
                 mode = state.mode,
                 hasStoredCredentials = state.hasStoredCredentials,
                 onOpenSettings = viewModel::openSettings,
-                onOpenWizard = viewModel::openWizard,
             )
 
             when (state.mode) {
@@ -133,9 +155,6 @@ fun MainScreen(viewModel: MainViewModel) {
                     state = state,
                     viewModel = viewModel,
                     refreshCooldownNowMs = refreshCooldownNowMs,
-                    connectionExpanded = connectionExpanded,
-                    onToggleConnection = { connectionExpanded = !connectionExpanded },
-                    onOpenQr = { showQrDialog = true },
                 )
             }
 
@@ -144,14 +163,6 @@ fun MainScreen(viewModel: MainViewModel) {
             }
         }
     }
-
-    val dialogQrImagePath = state.qrImagePath
-    if (showQrDialog && dialogQrImagePath != null) {
-        QrDialog(
-            qrImagePath = dialogQrImagePath,
-            onDismiss = { showQrDialog = false },
-        )
-    }
 }
 
 @Composable
@@ -159,7 +170,6 @@ private fun HeaderCard(
     mode: ScreenMode,
     hasStoredCredentials: Boolean,
     onOpenSettings: () -> Unit,
-    onOpenWizard: () -> Unit,
 ) {
     val dark = MaterialTheme.colorScheme.background.red < 0.2f
     val heroBrush = if (dark) {
@@ -180,51 +190,46 @@ private fun HeaderCard(
         border = BorderStroke(1.dp, borderColor),
         shadowElevation = if (dark) 0.dp else 6.dp,
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(heroBrush)
                 .padding(20.dp),
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
-            verticalAlignment = Alignment.CenterVertically,
+            verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            Surface(
-                modifier = Modifier.size(62.dp),
-                shape = RoundedCornerShape(20.dp),
-                color = badgeColor,
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Box(modifier = Modifier.padding(3.dp), contentAlignment = Alignment.Center) {
-                    Image(
-                        painter = painterResource(R.mipmap.ic_launcher_foreground),
-                        contentDescription = stringResource(R.string.app_name),
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .clip(RoundedCornerShape(14.dp)),
+                Surface(
+                    modifier = Modifier.size(62.dp),
+                    shape = RoundedCornerShape(20.dp),
+                    color = badgeColor,
+                ) {
+                    Box(modifier = Modifier.padding(3.dp), contentAlignment = Alignment.Center) {
+                        Image(
+                            painter = painterResource(R.mipmap.ic_launcher_foreground),
+                            contentDescription = stringResource(R.string.app_name),
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clip(RoundedCornerShape(14.dp)),
+                        )
+                    }
+                }
+
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        text = stringResource(R.string.app_name),
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = primaryTextColor,
                     )
-                }
-            }
-
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(
-                    text = stringResource(R.string.app_name),
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = primaryTextColor,
-                )
-                Text(
-                    text = stringResource(R.string.dashboard_subtitle),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = secondaryTextColor,
-                )
-            }
-
-            if (mode == ScreenMode.SETTINGS) {
-                IconButton(onClick = onOpenWizard) {
-                    Icon(Icons.Filled.PlayArrow, contentDescription = stringResource(R.string.action_run_wizard), tint = actionTint)
-                }
-            } else if (hasStoredCredentials) {
-                IconButton(onClick = onOpenSettings) {
-                    Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.action_open_settings), tint = actionTint)
+                    Text(
+                        text = stringResource(R.string.dashboard_subtitle),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = secondaryTextColor,
+                    )
                 }
             }
         }
@@ -236,76 +241,601 @@ private fun WizardContent(
     state: MainUiState,
     viewModel: MainViewModel,
 ) {
+    val uriHandler = LocalUriHandler.current
+    val rocketTokensUrl = InputSanitizer.tokensPageUrl(state.wizardEndpoint)
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text(
+            stringResource(R.string.wizard_title),
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+
+        DashboardCard {
+            Text(
+                stringResource(R.string.wizard_welcome),
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+
+        DashboardCard {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    text = "1. ${stringResource(R.string.wizard_section_endpoint_title)}",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                EndpointSettingsBlock(
+                    endpoint = state.wizardEndpoint,
+                    selectedPreset = state.wizardEndpointPreset,
+                    selectedIntensiveCampus = state.wizardIntensiveCampus,
+                    onEndpointChange = viewModel::onWizardEndpointChange,
+                    onPresetSelected = viewModel::selectWizardEndpointPreset,
+                    onIntensiveCampusSelected = viewModel::selectWizardIntensiveCampus,
+                )
+            }
+        }
+
+        WizardInstructionBlock(
+            credentialsBlob = state.wizardCredentialsBlob,
+            onCredentialsBlobChange = viewModel::onWizardCredentialsBlobChange,
+            onOpenTokensPage = {
+                if (rocketTokensUrl.isNotBlank()) {
+                    uriHandler.openUri(rocketTokensUrl)
+                }
+            },
+        )
+
+        val extracted = remember(state.wizardCredentialsBlob) {
+            RocketCredentialsExtractor.extract(state.wizardCredentialsBlob)
+        }
+        val detectedUserId = InputSanitizer.noWhitespace(extracted.userId.orEmpty())
+        val detectedToken = InputSanitizer.noWhitespace(extracted.authToken.orEmpty())
+        if (state.wizardCredentialsBlob.isNotBlank() && (detectedUserId.isNotBlank() || detectedToken.isNotBlank())) {
+            DetectedCredentialBlock(
+                userId = detectedUserId,
+                token = detectedToken,
+            )
+        }
+
+        WizardButtons(
+            isCheckingConnection = state.isConnectionCheckInProgress,
+            canProceed = state.wizardCredentialsBlob.isNotBlank(),
+            onNext = viewModel::wizardNext,
+        )
+    }
+}
+
+@Composable
+private fun WizardInstructionBlock(
+    credentialsBlob: String,
+    onCredentialsBlobChange: (String) -> Unit,
+    onOpenTokensPage: () -> Unit,
+) {
+    var exampleExpanded by remember { mutableStateOf(false) }
+    var exampleFullscreen by remember { mutableStateOf(false) }
     DashboardCard {
-        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            Text(stringResource(R.string.wizard_title), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(
+                text = "2. ${stringResource(R.string.instruction_title)}",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            StepText(
+                number = "1",
+                text = stringResource(R.string.instruction_step_1),
+                highlights = listOf("по кнопке ниже", "using the button below"),
+            )
+            StepText(
+                number = "2",
+                text = stringResource(R.string.instruction_step_2),
+                highlights = listOf("verter@student.21-school.ru"),
+            )
+            TokenLinkButton(onClick = onOpenTokensPage)
+            StepText(
+                number = "3",
+                text = stringResource(R.string.instruction_step_3),
+                highlights = listOf("Add new Personal", "Add"),
+            )
+            StepText(
+                number = "4",
+                text = stringResource(R.string.instruction_step_4),
+                highlights = listOf("введи пароль", "Enter your Rocket.Chat password"),
+            )
+            StepText(
+                number = "5",
+                text = stringResource(R.string.instruction_step_5),
+                highlights = listOf("Token", "Id", "token", "user Id"),
+            )
+            TextButton(onClick = { exampleExpanded = !exampleExpanded }) {
+                Text(
+                    if (exampleExpanded) {
+                        stringResource(R.string.instruction_hide_example)
+                    } else {
+                        stringResource(R.string.instruction_view_example)
+                    },
+                )
+            }
+            AnimatedVisibility(visible = exampleExpanded) {
+                Image(
+                    painter = painterResource(R.drawable.token_popup_example),
+                    contentDescription = stringResource(R.string.instruction_view_example),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 200.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable { exampleFullscreen = true },
+                    contentScale = ContentScale.Fit,
+                )
+            }
+            if (exampleFullscreen) {
+                TokenExampleFullscreenDialog(onDismiss = { exampleFullscreen = false })
+            }
+            StepText(number = "6", text = stringResource(R.string.instruction_step_6))
+            OutlinedTextField(
+                value = credentialsBlob,
+                onValueChange = onCredentialsBlobChange,
+                modifier = Modifier.fillMaxWidth(),
+                placeholder = { Text(stringResource(R.string.credentials_blob_label)) },
+                shape = RoundedCornerShape(12.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = Color(0xFFE0A81D),
+                    unfocusedBorderColor = Color(0xFF8A6A35).copy(alpha = 0.75f),
+                    focusedLabelColor = Color(0xFFE0A81D),
+                    cursorColor = Color(0xFFE0A81D),
+                ),
+                minLines = 4,
+            )
+        }
+    }
+}
 
-            when (state.wizardStep) {
-                WizardStep.WELCOME -> {
-                    Text(stringResource(R.string.wizard_welcome), style = MaterialTheme.typography.bodyLarge)
-                }
+@Composable
+private fun TokenExampleFullscreenDialog(onDismiss: () -> Unit) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            dismissOnBackPress = true,
+            dismissOnClickOutside = true,
+            usePlatformDefaultWidth = false,
+        ),
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.78f))
+                .clickable(onClick = onDismiss)
+                .padding(18.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Image(
+                painter = painterResource(R.drawable.token_popup_example),
+                contentDescription = stringResource(R.string.instruction_view_example),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .sizeIn(maxWidth = 560.dp, maxHeight = 760.dp)
+                    .clip(RoundedCornerShape(18.dp))
+                    .clickable { },
+                contentScale = ContentScale.Fit,
+            )
+        }
+    }
+}
 
-                WizardStep.USER_ID -> {
-                    Text(stringResource(R.string.wizard_user_id_hint), style = MaterialTheme.typography.bodyLarge)
-                    OutlinedTextField(
-                        value = state.userId,
-                        onValueChange = viewModel::onUserIdChange,
-                        modifier = Modifier.fillMaxWidth(),
-                        label = { Text(stringResource(R.string.user_id_label)) },
-                        singleLine = true,
-                    )
-                    HelpCard()
-                }
+@Composable
+private fun StepText(
+    number: String,
+    text: String,
+    highlights: List<String> = emptyList(),
+) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.Top,
+    ) {
+        Text(
+            text = "$number.",
+            style = MaterialTheme.typography.bodySmall,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        Text(
+            text = highlightedStepText(
+                text = text.removePrefix("$number.").trim(),
+                highlights = highlights,
+                highlightColor = MaterialTheme.colorScheme.onSurface,
+            ),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+        )
+    }
+}
 
-                WizardStep.TOKEN -> {
-                    Text(stringResource(R.string.wizard_token_hint), style = MaterialTheme.typography.bodyLarge)
-                    OutlinedTextField(
-                        value = state.authToken,
-                        onValueChange = viewModel::onTokenChange,
-                        modifier = Modifier.fillMaxWidth(),
-                        label = { Text(stringResource(R.string.token_label)) },
-                        singleLine = true,
-                        visualTransformation = PasswordVisualTransformation(),
-                    )
+private fun highlightedStepText(
+    text: String,
+    highlights: List<String>,
+    highlightColor: Color,
+): AnnotatedString {
+    if (highlights.isEmpty()) return AnnotatedString(text)
+    return buildAnnotatedString {
+        var index = 0
+        while (index < text.length) {
+            val next = highlights
+                .mapNotNull { word ->
+                    val found = text.indexOf(word, startIndex = index)
+                    if (found >= 0) found to word else null
                 }
+                .minByOrNull { it.first }
 
-                WizardStep.CHECK_CONNECTION -> {
-                    Text(stringResource(R.string.wizard_check_hint), style = MaterialTheme.typography.bodyLarge)
-                    OutlinedTextField(
-                        value = state.endpoint,
-                        onValueChange = viewModel::onEndpointChange,
-                        modifier = Modifier.fillMaxWidth(),
-                        label = { Text(stringResource(R.string.endpoint_label)) },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
-                    )
-                    FilledTonalButton(
-                        onClick = viewModel::checkConnection,
-                        enabled = !state.isConnectionCheckInProgress,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text(
-                            if (state.isConnectionCheckInProgress) {
-                                stringResource(R.string.action_check_connection)
-                            } else {
-                                stringResource(R.string.action_check_connection)
-                            },
-                        )
-                    }
-                }
-
-                WizardStep.DONE -> {
-                    Text(stringResource(R.string.wizard_done), style = MaterialTheme.typography.bodyLarge)
-                    Button(onClick = viewModel::openSettings, modifier = Modifier.fillMaxWidth()) {
-                        Text(stringResource(R.string.action_open_settings))
-                    }
-                }
+            if (next == null) {
+                append(text.substring(index))
+                break
             }
 
-            WizardButtons(
-                state = state,
-                onBack = viewModel::wizardBack,
-                onNext = viewModel::wizardNext,
+            append(text.substring(index, next.first))
+            withStyle(SpanStyle(fontWeight = FontWeight.SemiBold, color = highlightColor)) {
+                append(next.second)
+            }
+            index = next.first + next.second.length
+        }
+    }
+}
+
+@Composable
+private fun TokenLinkButton(onClick: () -> Unit) {
+    OutlinedButton(
+        onClick = onClick,
+        shape = RoundedCornerShape(8.dp),
+        border = BorderStroke(1.dp, Color(0xFFE0A81D)),
+    ) {
+        Text(stringResource(R.string.instruction_open_link))
+        Box(modifier = Modifier.width(8.dp))
+        Icon(Icons.Filled.ArrowOutward, contentDescription = null)
+    }
+}
+
+@Composable
+private fun EndpointSettingsBlock(
+    endpoint: String,
+    selectedPreset: EndpointPreset,
+    selectedIntensiveCampus: IntensiveCampus,
+    onEndpointChange: (String) -> Unit,
+    onPresetSelected: (EndpointPreset) -> Unit,
+    onIntensiveCampusSelected: (IntensiveCampus) -> Unit,
+) {
+    val showCustomEndpoint = selectedPreset == EndpointPreset.CUSTOM ||
+        (selectedPreset == EndpointPreset.INTENSIVE && selectedIntensiveCampus == IntensiveCampus.OTHER)
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        EndpointSegmentedControl(
+            selectedPreset = selectedPreset,
+            intensiveEnabled = true,
+            onPresetSelected = onPresetSelected,
+        )
+
+        AnimatedVisibility(visible = selectedPreset == EndpointPreset.INTENSIVE) {
+            IntensiveCampusSelector(
+                selectedCampus = selectedIntensiveCampus,
+                onCampusSelected = onIntensiveCampusSelected,
+            )
+        }
+
+            AnimatedVisibility(visible = showCustomEndpoint) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedTextField(
+                value = endpoint,
+                onValueChange = onEndpointChange,
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text(stringResource(R.string.endpoint_label)) },
+                placeholder = { Text(stringResource(R.string.endpoint_other_campus_placeholder)) },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+            )
+                Text(
+                    text = stringResource(R.string.endpoint_custom_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                EndpointHintImages()
+            }
+        }
+    }
+}
+
+@Composable
+private fun IntensiveCampusSelector(
+    selectedCampus: IntensiveCampus,
+    onCampusSelected: (IntensiveCampus) -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        IntensiveCampus.entries.forEach { campus ->
+            EndpointChip(
+                text = when (campus) {
+                    IntensiveCampus.MOSCOW -> stringResource(R.string.intensive_campus_moscow)
+                    IntensiveCampus.NOVOSIBIRSK -> stringResource(R.string.intensive_campus_novosibirsk)
+                    IntensiveCampus.KAZAN -> stringResource(R.string.intensive_campus_kazan)
+                    IntensiveCampus.OTHER -> stringResource(R.string.intensive_campus_other)
+                },
+                selected = selectedCampus == campus,
+                enabled = AndroidEndpointSecrets.isFixedCampusAvailable(campus),
+                onClick = { onCampusSelected(campus) },
+                modifier = Modifier.weight(1f),
+            )
+        }
+    }
+}
+
+@Composable
+private fun EndpointHintImages() {
+    var browserExpanded by remember { mutableStateOf(false) }
+    var mobileExpanded by remember { mutableStateOf(false) }
+    var fullscreenImage by remember { mutableStateOf<EndpointHintImage?>(null) }
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            TextButton(onClick = { browserExpanded = !browserExpanded }, modifier = Modifier.weight(1f)) {
+                Text(stringResource(R.string.endpoint_view_browser_example), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            TextButton(onClick = { mobileExpanded = !mobileExpanded }, modifier = Modifier.weight(1f)) {
+                Text(stringResource(R.string.endpoint_view_mobile_example), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+        }
+        AnimatedVisibility(visible = browserExpanded) {
+            Image(
+                painter = painterResource(R.drawable.endpoint_browser_hint),
+                contentDescription = stringResource(R.string.endpoint_view_browser_example),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 220.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .clickable { fullscreenImage = EndpointHintImage.BROWSER },
+                contentScale = ContentScale.Fit,
+            )
+        }
+        AnimatedVisibility(visible = mobileExpanded) {
+            Image(
+                painter = painterResource(R.drawable.endpoint_mobile_hint),
+                contentDescription = stringResource(R.string.endpoint_view_mobile_example),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 220.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .clickable { fullscreenImage = EndpointHintImage.MOBILE },
+                contentScale = ContentScale.Fit,
+            )
+        }
+    }
+    fullscreenImage?.let { image ->
+        EndpointHintFullscreenDialog(
+            image = image,
+            onDismiss = { fullscreenImage = null },
+        )
+    }
+}
+
+private enum class EndpointHintImage {
+    BROWSER,
+    MOBILE,
+}
+
+@Composable
+private fun EndpointHintFullscreenDialog(
+    image: EndpointHintImage,
+    onDismiss: () -> Unit,
+) {
+    val contentDescription = when (image) {
+        EndpointHintImage.BROWSER -> stringResource(R.string.endpoint_view_browser_example)
+        EndpointHintImage.MOBILE -> stringResource(R.string.endpoint_view_mobile_example)
+    }
+    val painter = when (image) {
+        EndpointHintImage.BROWSER -> painterResource(R.drawable.endpoint_browser_hint)
+        EndpointHintImage.MOBILE -> painterResource(R.drawable.endpoint_mobile_hint)
+    }
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            dismissOnBackPress = true,
+            dismissOnClickOutside = true,
+            usePlatformDefaultWidth = false,
+        ),
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.78f))
+                .clickable(onClick = onDismiss)
+                .padding(18.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Image(
+                painter = painter,
+                contentDescription = contentDescription,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .sizeIn(maxWidth = 760.dp, maxHeight = 820.dp)
+                    .clip(RoundedCornerShape(18.dp))
+                    .clickable { },
+                contentScale = ContentScale.Fit,
+            )
+        }
+    }
+}
+
+@Composable
+private fun EndpointSegmentedControl(
+    selectedPreset: EndpointPreset,
+    intensiveEnabled: Boolean,
+    onPresetSelected: (EndpointPreset) -> Unit,
+) {
+    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+        Row(
+            modifier = Modifier
+                .widthIn(max = 360.dp)
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(18.dp))
+                .border(
+                    width = 1.dp,
+                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.35f),
+                    shape = RoundedCornerShape(18.dp),
+                )
+                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.28f))
+                .padding(3.dp),
+            horizontalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            EndpointSegment(
+                text = stringResource(R.string.endpoint_preset_base),
+                selected = selectedPreset == EndpointPreset.BASE,
+                enabled = true,
+                onClick = { onPresetSelected(EndpointPreset.BASE) },
+                modifier = Modifier.weight(1f),
+            )
+            EndpointSegment(
+                text = stringResource(R.string.endpoint_preset_intensive),
+                selected = selectedPreset == EndpointPreset.INTENSIVE,
+                enabled = intensiveEnabled,
+                onClick = { onPresetSelected(EndpointPreset.INTENSIVE) },
+                modifier = Modifier.weight(1f),
+            )
+            EndpointSegment(
+                text = stringResource(R.string.endpoint_preset_custom),
+                selected = selectedPreset == EndpointPreset.CUSTOM,
+                enabled = true,
+                onClick = { onPresetSelected(EndpointPreset.CUSTOM) },
+                modifier = Modifier.weight(1f),
+            )
+        }
+    }
+}
+
+@Composable
+private fun EndpointSegment(
+    text: String,
+    selected: Boolean,
+    enabled: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val containerColor by animateColorAsState(
+        targetValue = if (selected) {
+            MaterialTheme.colorScheme.primary
+        } else {
+            Color.Transparent
+        },
+        label = "endpointSegmentContainer",
+    )
+    val contentColor by animateColorAsState(
+        targetValue = when {
+            selected -> MaterialTheme.colorScheme.onPrimary
+            enabled -> MaterialTheme.colorScheme.onSurface
+            else -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+        },
+        label = "endpointSegmentContent",
+    )
+
+    Box(
+        modifier = modifier
+            .height(36.dp)
+            .clip(RoundedCornerShape(15.dp))
+            .background(containerColor)
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(horizontal = 6.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = text,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+            color = contentColor,
+        )
+    }
+}
+
+@Composable
+private fun EndpointChip(
+    text: String,
+    selected: Boolean,
+    enabled: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val containerColor by animateColorAsState(
+        targetValue = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+        label = "endpointChipContainer",
+    )
+    val contentColor by animateColorAsState(
+        targetValue = when {
+            selected -> MaterialTheme.colorScheme.onPrimary
+            enabled -> MaterialTheme.colorScheme.onSurface
+            else -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+        },
+        label = "endpointChipContent",
+    )
+
+    Box(
+        modifier = modifier
+            .height(34.dp)
+            .clip(RoundedCornerShape(999.dp))
+            .background(containerColor)
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(horizontal = 6.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = text,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+            color = contentColor,
+        )
+    }
+}
+
+@Composable
+private fun DetectedCredentialBlock(
+    userId: String,
+    token: String,
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)),
+        shape = RoundedCornerShape(18.dp),
+    ) {
+        Column(
+            modifier = Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.detected_credentials_title),
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Text(
+                text = stringResource(
+                    R.string.detected_user_id_value,
+                    userId.ifBlank { stringResource(R.string.status_not_found) },
+                ),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                text = stringResource(
+                    R.string.detected_token_value,
+                    if (token.isBlank()) {
+                        stringResource(R.string.status_not_found)
+                    } else {
+                        token.takeLast(6).padStart(token.length, '•')
+                    },
+                ),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }
@@ -313,34 +843,46 @@ private fun WizardContent(
 
 @Composable
 private fun WizardButtons(
-    state: MainUiState,
-    onBack: () -> Unit,
+    isCheckingConnection: Boolean,
+    canProceed: Boolean,
     onNext: () -> Unit,
 ) {
-    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        if (state.wizardStep != WizardStep.WELCOME) {
-            OutlinedButton(
-                onClick = onBack,
-                modifier = Modifier.weight(1f),
-            ) {
-                Text(stringResource(R.string.action_back))
-            }
-        }
+    val enabled = !isCheckingConnection && canProceed
+    val buttonShape = RoundedCornerShape(18.dp)
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(56.dp),
+        shape = buttonShape,
+        color = if (enabled) Color.Transparent else Color(0xFF4C453B),
+    ) {
         Button(
             onClick = onNext,
-            modifier = Modifier.weight(1f),
+            enabled = enabled,
+            modifier = Modifier
+                .fillMaxSize()
+                .then(
+                    if (enabled) {
+                        Modifier.background(Brush.horizontalGradient(listOf(Color(0xFFF8D66A), Color(0xFFE0A81D))))
+                    } else {
+                        Modifier
+                    },
+                ),
+            shape = buttonShape,
             colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
+                containerColor = Color.Transparent,
+                contentColor = Color(0xFF33260F),
+                disabledContainerColor = Color.Transparent,
+                disabledContentColor = Color(0xFFD6C8B2),
             ),
         ) {
-            val nextLabel = when (state.wizardStep) {
-                WizardStep.WELCOME -> R.string.action_start
-                WizardStep.USER_ID, WizardStep.TOKEN -> R.string.action_next
-                WizardStep.CHECK_CONNECTION -> R.string.action_finish
-                WizardStep.DONE -> R.string.action_open_settings
-            }
-            Text(stringResource(nextLabel))
+            Text(
+                if (isCheckingConnection) {
+                    stringResource(R.string.connection_checking)
+                } else {
+                    stringResource(R.string.action_next)
+                },
+            )
         }
     }
 }
@@ -350,37 +892,84 @@ private fun SettingsDashboard(
     state: MainUiState,
     viewModel: MainViewModel,
     refreshCooldownNowMs: Long,
-    connectionExpanded: Boolean,
-    onToggleConnection: () -> Unit,
-    onOpenQr: () -> Unit,
 ) {
-    val context = LocalContext.current
-
-    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         StatusCard(state = state)
         QrCard(
             state = state,
             refreshCooldownNowMs = refreshCooldownNowMs,
             onRefresh = viewModel::refreshNow,
-            onOpenQr = onOpenQr,
             onAutoRefreshEnabledChange = viewModel::setAutoRefreshEnabled,
             onMaxBrightnessEnabledChange = viewModel::setMaxBrightnessEnabled,
         )
         WidgetInstallCard()
-        ConnectionCard(
-            state = state,
-            connectionExpanded = connectionExpanded,
-            onCopyEndpoint = { copyToClipboard(context, "endpoint", state.endpoint) },
-            onCopyUserId = { copyToClipboard(context, "user_id", state.userId) },
-            onToggleConnection = onToggleConnection,
-            onEndpointChange = viewModel::onEndpointChange,
-            onUserIdChange = viewModel::onUserIdChange,
-            onTokenChange = viewModel::onTokenChange,
-            onCheckConnection = viewModel::checkConnection,
-            onResetEndpoint = viewModel::resetEndpointToDefault,
-        )
-        HelpCard()
+        ClearDataCard(onClearData = viewModel::clearAllData)
         CreditsCard()
+    }
+}
+
+@Composable
+private fun ClearDataCard(onClearData: () -> Unit) {
+    var confirmVisible by remember { mutableStateOf(false) }
+
+    DashboardCard {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.clear_data_title),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text = stringResource(R.string.clear_data_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            if (confirmVisible) {
+                Text(
+                    text = stringResource(R.string.clear_data_confirm_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+                OutlinedButton(
+                    onClick = onClearData,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(DashboardActionButtonHeight),
+                    shape = DashboardActionButtonShape,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.56f)),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error.copy(alpha = 0.85f),
+                    ),
+                ) {
+                    Text(
+                        stringResource(R.string.action_clear_all_data_confirm),
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+            } else {
+                OutlinedButton(
+                    onClick = { confirmVisible = true },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(DashboardActionButtonHeight),
+                    shape = DashboardActionButtonShape,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.56f)),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error.copy(alpha = 0.85f),
+                    ),
+                ) {
+                    Text(
+                        stringResource(R.string.action_clear_all_data),
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -408,65 +997,64 @@ private fun StatusCard(state: MainUiState) {
         colors = CardDefaults.cardColors(containerColor = containerColor),
         border = BorderStroke(1.dp, borderColor),
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(18.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Surface(modifier = Modifier.size(54.dp), shape = CircleShape, color = badgeColor) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = Color(0xFF167335))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Surface(
+                    modifier = Modifier.size(54.dp),
+                    shape = CircleShape,
+                    color = badgeColor,
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = Color(0xFF167335))
+                    }
+                }
+                Text(
+                    headline,
+                    modifier = Modifier.weight(1f),
+                    color = headlineColor,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                IconButton(onClick = { detailsExpanded = !detailsExpanded }) {
+                    Icon(
+                        imageVector = if (detailsExpanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+                        contentDescription = stringResource(R.string.status_toggle_details),
+                        tint = textColor,
+                    )
                 }
             }
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
+            if (detailsExpanded) {
+                Text(
+                    stringResource(R.string.status_last_sync, state.lastSuccessAtMs?.formatDateTime() ?: stringResource(R.string.status_never)),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = textColor,
+                )
+                Text(
+                    stringResource(R.string.status_expires, state.expiresAtMs?.formatDateOnly() ?: stringResource(R.string.status_unknown)),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = textColor,
+                )
+                if (state.autoRefreshEnabled && state.nextAutoRefreshAtMs != null) {
                     Text(
-                        headline,
-                        color = headlineColor,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                    IconButton(onClick = { detailsExpanded = !detailsExpanded }) {
-                        Icon(
-                            imageVector = if (detailsExpanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
-                            contentDescription = stringResource(R.string.status_toggle_details),
-                            tint = textColor,
-                        )
-                    }
-                }
-                if (detailsExpanded) {
-                    Text(
-                        stringResource(R.string.status_last_sync, state.lastSuccessAtMs?.formatDateTime() ?: stringResource(R.string.status_never)),
+                        stringResource(R.string.status_next_auto_refresh, state.nextAutoRefreshAtMs.formatDateTime()),
                         style = MaterialTheme.typography.bodyMedium,
                         color = textColor,
                     )
+                } else if (!state.autoRefreshEnabled) {
                     Text(
-                        stringResource(R.string.status_expires, state.expiresAtMs?.formatDateOnly() ?: stringResource(R.string.status_unknown)),
+                        stringResource(R.string.status_auto_refresh_disabled),
                         style = MaterialTheme.typography.bodyMedium,
                         color = textColor,
                     )
-                    if (state.autoRefreshEnabled && state.nextAutoRefreshAtMs != null) {
-                        Text(
-                            stringResource(R.string.status_next_auto_refresh, state.nextAutoRefreshAtMs.formatDateTime()),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = textColor,
-                        )
-                    } else if (!state.autoRefreshEnabled) {
-                        Text(
-                            stringResource(R.string.status_auto_refresh_disabled),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = textColor,
-                        )
-                    }
                 }
             }
         }
@@ -478,7 +1066,6 @@ private fun QrCard(
     state: MainUiState,
     refreshCooldownNowMs: Long,
     onRefresh: () -> Unit,
-    onOpenQr: () -> Unit,
     onAutoRefreshEnabledChange: (Boolean) -> Unit,
     onMaxBrightnessEnabledChange: (Boolean) -> Unit,
 ) {
@@ -489,19 +1076,16 @@ private fun QrCard(
         state.manualRefreshBlockedUntilMs,
         refreshCooldownNowMs,
     )
+    val isIntensiveEndpoint = state.endpointPreset == EndpointPreset.INTENSIVE ||
+        AndroidEndpointSecrets.isIntensiveEndpoint(state.endpoint)
 
     DashboardCard {
-        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(stringResource(R.string.app_qr_title), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
-                IconButton(onClick = onOpenQr, enabled = bitmap != null) {
-                    Icon(Icons.Filled.OpenInFull, contentDescription = stringResource(R.string.widget_qr_content_description))
-                }
-            }
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(
+                text = stringResource(R.string.app_qr_title),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
 
             Surface(
                 modifier = Modifier.fillMaxWidth(),
@@ -536,8 +1120,10 @@ private fun QrCard(
             Button(
                 onClick = onRefresh,
                 enabled = !state.syncInProgress && !isManualRefreshBlocked,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(18.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(DashboardActionButtonHeight),
+                shape = DashboardActionButtonShape,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary,
@@ -545,33 +1131,39 @@ private fun QrCard(
             ) {
                 Icon(Icons.Filled.Refresh, contentDescription = null)
                 Box(modifier = Modifier.width(10.dp))
-                Text(stringResource(R.string.manual_refresh))
+                Text(
+                    stringResource(R.string.manual_refresh),
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.SemiBold,
+                )
             }
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(2.dp),
+            if (!isIntensiveEndpoint) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text(
-                        text = stringResource(R.string.auto_refresh_label),
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Medium,
-                    )
-                    Text(
-                        text = stringResource(R.string.auto_refresh_hint),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(2.dp),
+                    ) {
+                        Text(
+                            text = stringResource(R.string.auto_refresh_label),
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Medium,
+                        )
+                        Text(
+                            text = stringResource(R.string.auto_refresh_hint),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Switch(
+                        checked = state.autoRefreshEnabled,
+                        onCheckedChange = onAutoRefreshEnabledChange,
                     )
                 }
-                Switch(
-                    checked = state.autoRefreshEnabled,
-                    onCheckedChange = onAutoRefreshEnabledChange,
-                )
             }
 
             Row(
@@ -614,7 +1206,6 @@ private fun ConnectionCard(
     onUserIdChange: (String) -> Unit,
     onTokenChange: (String) -> Unit,
     onCheckConnection: () -> Unit,
-    onResetEndpoint: () -> Unit,
 ) {
     DashboardCard {
         Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -644,8 +1235,6 @@ private fun ConnectionCard(
                     icon = { Icon(Icons.Filled.Language, contentDescription = null) },
                     title = stringResource(R.string.endpoint_label),
                     onCopy = onCopyEndpoint,
-                    extraAction = onResetEndpoint,
-                    extraIcon = { Icon(Icons.Filled.Refresh, contentDescription = stringResource(R.string.action_reset_endpoint)) },
                 )
                 OutlinedTextField(
                     value = state.endpoint,
@@ -729,8 +1318,6 @@ private fun ConnectionFieldHeader(
     icon: @Composable () -> Unit,
     title: String,
     onCopy: (() -> Unit)?,
-    extraAction: (() -> Unit)? = null,
-    extraIcon: (@Composable () -> Unit)? = null,
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -742,11 +1329,6 @@ private fun ConnectionFieldHeader(
             Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Medium)
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
-            if (extraAction != null && extraIcon != null) {
-                IconButton(onClick = extraAction) {
-                    extraIcon()
-                }
-            }
             if (onCopy != null) {
                 IconButton(onClick = onCopy) {
                     Icon(Icons.Filled.ContentCopy, contentDescription = null)
@@ -767,21 +1349,16 @@ private fun WidgetInstallCard() {
             modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                Surface(modifier = Modifier.size(44.dp), shape = RoundedCornerShape(14.dp), color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(Icons.Filled.Widgets, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                    }
-                }
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(stringResource(R.string.widget_install_title), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                    Text(
-                        stringResource(R.string.widget_install_hint),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
+            Text(
+                text = stringResource(R.string.widget_install_title),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text = stringResource(R.string.widget_install_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
 
             OutlinedButton(
                 onClick = {
@@ -793,50 +1370,60 @@ private fun WidgetInstallCard() {
                     }
                     Toast.makeText(context, message, Toast.LENGTH_LONG).show()
                 },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(DashboardActionButtonHeight),
+                shape = DashboardActionButtonShape,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.55f)),
                 colors = ButtonDefaults.outlinedButtonColors(
                     contentColor = if (MaterialTheme.colorScheme.background.red < 0.2f) Color(0xFFFFE7B5) else Color(0xFF6F4700),
                 ),
             ) {
-                Text(stringResource(R.string.widget_install_action))
+                Text(
+                    stringResource(R.string.widget_install_action),
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.SemiBold,
+                )
             }
         }
     }
 }
 
 @Composable
-private fun HelpCard() {
+private fun HelpCard(compact: Boolean = false) {
     val uriHandler = LocalUriHandler.current
-    val url = stringResource(R.string.rocket_tokens_url)
+    val url = Defaults.rocketTokensUrl
 
     DashboardCard {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                Surface(modifier = Modifier.size(44.dp), shape = RoundedCornerShape(14.dp), color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(Icons.AutoMirrored.Filled.HelpOutline, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                    }
-                }
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(stringResource(R.string.instruction_title), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                    Text(
-                        stringResource(R.string.token_help_body),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
+            Text(
+                stringResource(R.string.instruction_title),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Text(
+                stringResource(R.string.token_help_body),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
 
             Text(stringResource(R.string.instruction_step_1), style = MaterialTheme.typography.bodySmall)
             Text(stringResource(R.string.instruction_step_2), style = MaterialTheme.typography.bodySmall)
             Text(stringResource(R.string.instruction_step_3), style = MaterialTheme.typography.bodySmall)
             Text(stringResource(R.string.instruction_step_4), style = MaterialTheme.typography.bodySmall)
             Text(stringResource(R.string.instruction_step_5), style = MaterialTheme.typography.bodySmall)
+            Text(stringResource(R.string.instruction_step_6), style = MaterialTheme.typography.bodySmall)
 
-            TextButton(onClick = { uriHandler.openUri(url) }) {
-                Text(stringResource(R.string.instruction_open_link))
-                Box(modifier = Modifier.width(8.dp))
-                Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null)
+            if (!compact) {
+                TextButton(
+                    enabled = url.isNotBlank(),
+                    onClick = { uriHandler.openUri(url) },
+                ) {
+                    Text(stringResource(R.string.instruction_open_link))
+                    Box(modifier = Modifier.width(8.dp))
+                    Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null)
+                }
             }
         }
     }
@@ -855,14 +1442,22 @@ private fun CreditsCard() {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 8.dp),
+                .padding(horizontal = 16.dp, vertical = 12.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
             TextButton(onClick = { uriHandler.openUri(githubUrl) }) {
+                Icon(
+                    imageVector = Icons.Filled.Star,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp),
+                    tint = Color(0xFFE8B12C),
+                )
+                Box(modifier = Modifier.width(4.dp))
                 Text(
                     text = stringResource(R.string.instruction_github_link),
                     style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
             Box(
@@ -903,39 +1498,6 @@ private fun NoticeCard(message: String) {
 }
 
 @Composable
-private fun QrDialog(
-    qrImagePath: String,
-    onDismiss: () -> Unit,
-) {
-    val bitmap = remember(qrImagePath) { BitmapFactory.decodeFile(qrImagePath) }
-
-    Dialog(onDismissRequest = onDismiss) {
-        Card(shape = RoundedCornerShape(30.dp)) {
-            Column(
-                modifier = Modifier.padding(18.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                Text(stringResource(R.string.app_qr_title), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
-                if (bitmap != null) {
-                    Image(
-                        bitmap = bitmap.asImageBitmap(),
-                        contentDescription = stringResource(R.string.widget_qr_content_description),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .sizeIn(maxWidth = 420.dp)
-                            .aspectRatio(1f),
-                    )
-                }
-                Button(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) {
-                    Text(stringResource(R.string.action_back))
-                }
-            }
-        }
-    }
-}
-
-@Composable
 private fun DashboardCard(content: @Composable ColumnScope.() -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -944,7 +1506,7 @@ private fun DashboardCard(content: @Composable ColumnScope.() -> Unit) {
         elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
     ) {
         Column(
-            modifier = Modifier.padding(18.dp),
+            modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
             content = content,
         )

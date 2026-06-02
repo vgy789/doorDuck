@@ -29,6 +29,12 @@ class QrWorkScheduler(context: Context) {
         workManager.cancelUniqueWork(EXPIRY_WORK_NAME)
     }
 
+    fun cancelAllRefreshWork() {
+        workManager.cancelUniqueWork(EXPIRY_WORK_NAME)
+        workManager.cancelUniqueWork(MANUAL_WORK_NAME)
+        workManager.cancelUniqueWork(WATCHDOG_WORK_NAME)
+    }
+
     fun enqueueAutomaticRefresh(delayMs: Long, attempt: Int) {
         val oneTime = OneTimeWorkRequestBuilder<QrRefreshWorker>()
             .setInputData(

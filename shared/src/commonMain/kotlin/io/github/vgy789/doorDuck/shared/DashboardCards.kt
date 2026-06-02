@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -36,6 +37,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import io.github.vgy789.doorDuck.model.ConnectionCheckResult
 import io.github.vgy789.doorDuck.model.SyncError
 import io.github.vgy789.doorDuck.domain.SyncPolicy
@@ -127,13 +129,17 @@ internal fun DoorDuckHeader(
             }
 
             if (actionLabel != null && onAction != null) {
-                TextButton(
+                OutlinedButton(
                     onClick = onAction,
-                    modifier = Modifier.align(Alignment.End),
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = if (dark) Color(0xFFFFE7B5) else Color(0xFF6F4700),
+                    ),
                 ) {
+                    Text("⚙")
+                    Box(modifier = Modifier.size(8.dp))
                     Text(
                         text = actionLabel,
-                        color = if (dark) Color(0xFFF2C64D) else Color(0xFF9A5D00),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -173,45 +179,50 @@ internal fun DoorDuckStatusCard(
         colors = CardDefaults.cardColors(containerColor = containerColor),
         border = BorderStroke(1.dp, borderColor),
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(18.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Surface(
-                modifier = Modifier.size(54.dp),
-                shape = CircleShape,
-                color = badgeColor,
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Text(
-                        text = "OK",
-                        color = Color(0xFF146B32),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                    )
+                Surface(
+                    modifier = Modifier.size(54.dp),
+                    shape = CircleShape,
+                    color = badgeColor,
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Text(
+                            text = "OK",
+                            color = Color(0xFF146B32),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
                 }
-            }
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
                     text = headline,
+                    modifier = Modifier.weight(1f),
                     color = headlineColor,
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.SemiBold,
                 )
-                Text(
-                    text = "${strings.statusLastCheck}: ${lastSuccessAtMs?.let(::formatEpochMillis) ?: strings.statusNever}",
-                    color = textColor,
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                Text(
-                    text = "${strings.statusExpiresAt}: ${expiresAtMs?.let(::formatEpochDate) ?: strings.statusUnknown}",
-                    color = textColor,
-                    style = MaterialTheme.typography.bodyMedium,
-                )
+                Box(modifier = Modifier.size(24.dp))
             }
+            Text(
+                text = "${strings.statusLastCheck}: ${lastSuccessAtMs?.let(::formatEpochMillis) ?: strings.statusNever}",
+                color = textColor,
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            Text(
+                text = "${strings.statusExpiresAt}: ${expiresAtMs?.let(::formatEpochDate) ?: strings.statusUnknown}",
+                color = textColor,
+                style = MaterialTheme.typography.bodyMedium,
+            )
         }
     }
 }
@@ -460,6 +471,7 @@ internal fun DoorDuckHelpCard(
             Text(strings.instructionStep3, style = MaterialTheme.typography.bodySmall)
             Text(strings.instructionStep4, style = MaterialTheme.typography.bodySmall)
             Text(strings.instructionStep5, style = MaterialTheme.typography.bodySmall)
+            Text(strings.instructionStep6, style = MaterialTheme.typography.bodySmall)
             TextButton(onClick = onOpenTokensPage) {
                 Text(strings.instructionOpenLink)
             }
@@ -485,7 +497,13 @@ internal fun DoorDuckCreditsCard(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             TextButton(onClick = onOpenGithubPage) {
-                Text(strings.githubLinkLabel, style = MaterialTheme.typography.bodySmall)
+                Text("★", fontSize = 12.sp, color = Color(0xFFE8B12C))
+                Box(modifier = Modifier.width(4.dp))
+                Text(
+                    strings.githubLinkLabel,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
             Box(
                 modifier = Modifier

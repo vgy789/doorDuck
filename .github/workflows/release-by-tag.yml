@@ -32,12 +32,14 @@ jobs:
       - name: Validate signing secrets
         shell: bash
         env:
+          CORE_PROGRAM_URL: ${{ secrets.CORE_PROGRAM_URL }}
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           set -euo pipefail
+          test -n "${CORE_PROGRAM_URL}"
           test -n "${ANDROID_KEYSTORE_BASE64}"
           test -n "${ANDROID_KEYSTORE_PASSWORD}"
           test -n "${ANDROID_KEY_ALIAS}"
@@ -54,10 +56,14 @@ jobs:
 
       - name: Build release APK
         env:
+          CORE_PROGRAM_URL: ${{ secrets.CORE_PROGRAM_URL }}
           ANDROID_SIGNING_STORE_FILE: ${{ github.workspace }}/.ci/release-keystore.jks
           ANDROID_SIGNING_STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_SIGNING_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_SIGNING_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          INTENSIVE_MSK_URL: ${{ secrets.INTENSIVE_MSK_URL }}
+          INTENSIVE_NSK_URL: ${{ secrets.INTENSIVE_NSK_URL }}
+          INTENSIVE_KZN_URL: ${{ secrets.INTENSIVE_KZN_URL }}
         run: ./gradlew :app:assembleRelease
 
       - name: Prepare release assets
