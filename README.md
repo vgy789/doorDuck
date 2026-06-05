@@ -2,31 +2,23 @@
 
 # doorDuck
 
+
 ![Android](https://img.shields.io/badge/Android-24%2B-3DDC84?logo=android&logoColor=white)
 ![iOS](https://img.shields.io/badge/iOS-14%2B-000000?logo=apple&logoColor=white)
 ![Kotlin Multiplatform](https://img.shields.io/badge/Kotlin-Multiplatform-7F52FF?logo=kotlin&logoColor=white)
 ![Compose Multiplatform](https://img.shields.io/badge/Compose-Multiplatform-4285F4)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](./LICENSE)
 
-`doorDuck` — мультиплатформенное приложение для School 21, которое получает QR для входа через Rocket.Chat API, сохраняет его локально и показывает в приложении и виджете на Android / iOS.
+`doorDuck` — приложение для прохода в кампусы Школы 21. Показывает QR-пропуск в виджете и внутри приложения Android/iOS, автоматически его продлевая.
 
 > [!IMPORTANT]
 > `doorDuck` — неофициальный клиент. Проект не связан с АНО «Школа 21», Сбером или Rocket.Chat. Пользователь самостоятельно отвечает за соблюдение правил своей организации, договоров, политик информационной безопасности и применимого законодательства.
 
 ## Скачать
 
-[Latest Release](https://github.com/vgy789/doorDuck/releases/latest) | [Download APK](https://github.com/vgy789/doorDuck/releases/latest/download/doorDuck-latest.apk) | [Download SHA256](https://github.com/vgy789/doorDuck/releases/latest/download/doorDuck-latest.apk.sha256)
+[Latest Release](https://github.com/vgy789/doorDuck/releases/latest) | [Download APK](https://github.com/vgy789/doorDuck/releases/latest/download/doorDuck-latest.apk)
 
 Сейчас в релизах публикуется Android APK. iOS-версия собирается из исходников.
-
-## Возможности
-
-- Пошаговый мастер первичной настройки на RU/EN.
-- Проверка доступа к Rocket.Chat и валидация учётных данных.
-- Автообновление QR перед истечением срока действия.
-- Масштабируемый виджет на Android и iOS.
-
-## Скриншоты
 
 <table>
   <tr>
@@ -41,6 +33,14 @@
     </td>
   </tr>
 </table>
+
+## Возможности
+
+- Масштабируемый виджет на Android и iOS.
+- Автообновление QR по истечении срока действия.
+- Увеличение яркости экрана при отображении кода.
+- Поддержа RU/EN языков.
+- Доступно для студентов, участников отборочного интенсива, сотрудников.
 
 ## Приватность и безопасность
 
