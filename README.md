@@ -9,16 +9,14 @@
 ![Compose Multiplatform](https://img.shields.io/badge/Compose-Multiplatform-4285F4)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](./LICENSE)
 
-`doorDuck` — приложение для прохода в кампусы Школы 21. Показывает QR-пропуск в виджете и внутри приложения Android/iOS, автоматически его продлевая.
+`doorDuck` показывает и обновляет QR-пропуск для кампусов Школы 21 в приложении и виджетах Android/iOS.
 
 > [!IMPORTANT]
-> `doorDuck` — неофициальный клиент. Проект не связан с АНО «Школа 21», Сбером или Rocket.Chat. Пользователь самостоятельно отвечает за соблюдение правил своей организации, договоров, политик информационной безопасности и применимого законодательства.
+> `doorDuck` не связан с АНО «Школа 21», Сбером или Rocket.Chat. Пользователь отвечает за соблюдение правил организации, договоров и законодательства.
 
 ## Скачать
 
-[Latest Release](https://github.com/vgy789/doorDuck/releases/latest) | [Download APK](https://github.com/vgy789/doorDuck/releases/latest/download/doorDuck-latest.apk)
-
-Сейчас в релизах публикуется Android APK. iOS-версия собирается из исходников.
+[Latest Release](https://github.com/vgy789/doorDuck/releases/latest) | [Android APK](https://github.com/vgy789/doorDuck/releases/latest/download/doorDuck-latest.apk) | iOS собирается из исходников
 
 <table>
   <tr>
@@ -36,44 +34,28 @@
 
 ## Возможности
 
-- Масштабируемый виджет на Android и iOS.
-- Автообновление QR по истечении срока действия.
-- Увеличение яркости экрана при отображении кода.
-- Поддержа RU/EN языков.
-- Доступно для студентов, участников отборочного интенсива, сотрудников.
+- Масштабируемые виджеты Android/iOS с обновлением QR по истечении срока.
+- Повышение яркости при показе кода.
+- Русский и английский языки.
+- Доступ для студентов, участников интенсива и сотрудников.
 
 ## Приватность и безопасность
 
-Проект является **неофициальным** и разрабатывается независимо. Перед использованием обязательно ознакомьтесь с положениями [Политики конфиденциальности](./.github/PRIVACY.md) и [Инструкциями по безопасности](./.github/SECURITY.md). 
-
-- Приложение не использует сервер автора: запросы отправляются с устройства пользователя напрямую в выбранный Rocket.Chat endpoint.
-- Не публикуйте свои `X-Auth-Token`, user ID, QR-коды, скриншоты с приватными данными или логи.
+Запросы идут с устройства напрямую в Rocket.Chat, без сервера автора. Подробнее: [конфиденциальность](./.github/PRIVACY.md) и [безопасность](./.github/SECURITY.md).
 
 ## Секреты сборки
 
-Endpoint-адреса не хранятся в исходниках. Для локальной сборки скопируйте `secrets.properties.example` в `secrets.properties` и заполните значения.
+Адресов API нет в исходниках. Для сборки заполните `secrets.properties` по примеру `secrets.properties.example`.
 
 ## Архитектура
 
-Проект разделён на три основных модуля:
-
-- `shared` — Kotlin Multiplatform модуль с общей бизнес-логикой, Compose Multiplatform UI для iOS, моделями, строками и platform abstraction.
-- `app` — Android-приложение на Jetpack Compose, Android widget, WorkManager, Android storage/network integration.
-- `iosApp` — Xcode-проект, который использует `shared` framework и содержит iOS app + WidgetKit extension.
+- `shared` — общая логика, модели, ресурсы, платформенные абстракции и Compose UI для iOS.
+- `app` — Android-приложение и виджет, сеть, хранилище и WorkManager.
+- `iosApp` — iOS-приложение и WidgetKit extension на основе `shared`.
 
 ## Технологии
 
-- Kotlin Multiplatform
-- Compose Multiplatform
-- Jetpack Compose
-- WidgetKit
-- Jetpack Glance
-- WorkManager
-- Ktor / Darwin client
-- Retrofit + OkHttp
-- kotlinx.serialization
-- DataStore Preferences
-- AndroidX Security Crypto
+Kotlin и Compose Multiplatform, Jetpack Compose, WidgetKit, Glance, WorkManager, Ktor, Darwin client, Retrofit, OkHttp, kotlinx.serialization, DataStore и AndroidX Security Crypto.
 
 ## Лицензия
 
