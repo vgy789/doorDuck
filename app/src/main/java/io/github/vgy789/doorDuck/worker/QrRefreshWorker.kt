@@ -33,6 +33,7 @@ class QrRefreshWorker(
                 localImagePath = snapshot.localImagePath,
                 expiresAtMs = snapshot.expiresAtMs,
                 nextAutoRefreshAtMs = snapshot.nextAutoRefreshAtMs,
+                lastError = snapshot.lastError,
             )
             if (!shouldRefresh) {
                 container.widgetUpdateCoordinator.forceWidgetUpdateNow()
@@ -59,10 +60,14 @@ class QrRefreshWorker(
                     0
                 }
                 val shouldPersistCooldown = result.retryAfterMs != null
-                if (shouldPersistCooldown) {
+                if (result.error == io.github.vgy789.doorDuck.model.SyncError.UNAUTHORIZED) {
+                    container.settingsStore.setNextAutoRefreshAt(null)
+                    container.workScheduler.cancelAutomaticRefresh()
+                    Result.failure()
+                } else if (shouldPersistCooldown) {
                     val retryAtMs = SyncPolicy.nextRetryAtMs(
-                        expiresAtMs = snapshot.expiresAtMs,
                         attempt = attempt,
+                        nowMs = System.currentTimeMillis(),
                         minDelayMs = result.retryAfterMs ?: 0L,
                     )
                     container.settingsStore.setNextAutoRefreshAt(retryAtMs)
@@ -75,8 +80,8 @@ class QrRefreshWorker(
                     Result.success()
                 } else if (isAutomaticAttempt && autoRefreshEnabled) {
                     val retryAtMs = SyncPolicy.nextRetryAtMs(
-                        expiresAtMs = snapshot.expiresAtMs,
                         attempt = attempt,
+                        nowMs = System.currentTimeMillis(),
                     )
                     container.settingsStore.setNextAutoRefreshAt(retryAtMs)
                     container.workScheduler.scheduleAutomaticRetry(

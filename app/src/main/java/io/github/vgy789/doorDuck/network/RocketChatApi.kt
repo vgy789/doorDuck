@@ -20,6 +20,13 @@ interface RocketChatApi {
     @POST("chat.sendMessage")
     suspend fun sendMessage(@Body body: SendMessageRequest): SendMessageResponse
 
+    @GET("users.list")
+    suspend fun getUsers(
+        @Query("query") query: String,
+        @Query("fields") fields: String = """{"username":1,"type":1}""",
+        @Query("count") count: Int = 20,
+    ): UsersListResponse
+
     @GET("im.messages")
     suspend fun getMessages(
         @Query("roomId") roomId: String,
@@ -94,4 +101,17 @@ data class MessageDto(
 data class MessageUserDto(
     @SerialName("_id") val id: String? = null,
     val username: String? = null,
+)
+
+@Serializable
+data class UsersListResponse(
+    val success: Boolean = false,
+    val users: List<UserDto> = emptyList(),
+)
+
+@Serializable
+data class UserDto(
+    @SerialName("_id") val id: String? = null,
+    val username: String? = null,
+    val type: String? = null,
 )

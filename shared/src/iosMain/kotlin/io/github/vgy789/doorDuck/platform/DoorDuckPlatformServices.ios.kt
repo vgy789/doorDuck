@@ -4,9 +4,11 @@ import io.github.vgy789.doorDuck.domain.SyncPolicy
 import io.github.vgy789.doorDuck.model.ConnectionCheckResult
 import io.github.vgy789.doorDuck.model.Credentials
 import io.github.vgy789.doorDuck.model.Defaults
+import io.github.vgy789.doorDuck.model.QrImageValidationStatus
 import io.github.vgy789.doorDuck.model.SyncError
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.darwin.Darwin
+import io.ktor.client.request.parameter
 import io.ktor.client.request.accept
 import io.ktor.client.request.get
 import io.ktor.client.request.header
@@ -28,6 +30,8 @@ import kotlinx.coroutines.delay
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlin.io.encoding.Base64
+import kotlin.io.encoding.ExperimentalEncodingApi
 import platform.CoreFoundation.CFDataCreate
 import platform.CoreFoundation.CFDataGetBytePtr
 import platform.CoreFoundation.CFDataGetLength
@@ -42,6 +46,10 @@ import platform.CoreFoundation.kCFStringEncodingUTF8
 import platform.Foundation.NSDate
 import platform.Foundation.NSDateFormatter
 import platform.Foundation.NSUserDefaults
+import platform.CoreGraphics.CGImageGetHeight
+import platform.CoreGraphics.CGImageGetWidth
+import platform.ImageIO.CGImageSourceCreateImageAtIndex
+import platform.ImageIO.CGImageSourceCreateWithData
 import platform.Security.SecItemAdd
 import platform.Security.SecItemCopyMatching
 import platform.Security.SecItemDelete
@@ -70,6 +78,7 @@ private const val KEY_MANUAL_REFRESH_BLOCKED_UNTIL = "door_duck.manual_refresh_b
 private const val KEY_LAST_CONNECTION_RESULT = "door_duck.last_connection_result"
 private const val KEY_LAST_SYNC_ERROR = "door_duck.last_sync_error"
 private const val KEY_QR_IMAGE_BASE64 = "door_duck.qr_image_base64"
+private const val KEY_QR_SNAPSHOT_V2 = "door_duck.qr_snapshot_v2"
 private const val APP_GROUP_ID = "group.io.github.vgy789.doorDuck"
 private const val KEYCHAIN_SERVICE = "io.github.vgy789.doorDuck"
 private const val KEYCHAIN_TOKEN_ACCOUNT = "rocket_chat_auth_token"
@@ -79,6 +88,7 @@ private const val POLL_DELAY_MS = 2_000L
 
 private val dataUriImageRegex = Regex("!\\[[^\\]]*\\]\\((data:image/[^;]+;base64,[^)]+)\\)")
 private val expirationRegex = Regex("(?i)expire\\s+on\\s+(\\d{2}\\.\\d{2}\\.\\d{4})")
+private val botUsernameRegex = Regex("(generator|qr-code|code-generator)", RegexOption.IGNORE_CASE)
 
 private val json = Json {
     ignoreUnknownKeys = true
@@ -88,6 +98,14 @@ private val json = Json {
 private val client = HttpClient(Darwin) {
     expectSuccess = false
 }
+
+@Serializable
+private data class PersistedQrSnapshot(
+    val qrImageBase64: String,
+    val lastSuccessAtMs: Long? = null,
+    val expiresAtMs: Long? = null,
+    val imageValidationStatus: String = QrImageValidationStatus.UNKNOWN.name,
+)
 
 actual object DoorDuckPlatformServices {
     actual fun currentLanguageCode(): String {
@@ -111,8 +129,11 @@ actual object DoorDuckPlatformServices {
         val endpoint = defaults.stringForKey(KEY_ENDPOINT)?.takeIf { it.isNotBlank() } ?: Defaults.defaultEndpoint
         val token = loadAuthToken(defaults)
         val userId = defaults.stringForKey(KEY_USER_ID).orEmpty()
-        val lastSuccessAt = defaults.stringForKey(KEY_LAST_SUCCESS_AT)?.toLongOrNull()
-        val expiresAt = defaults.stringForKey(KEY_EXPIRES_AT)?.toLongOrNull()
+        val storedSnapshot = defaults.stringForKey(KEY_QR_SNAPSHOT_V2)?.let {
+            runCatching { json.decodeFromString(PersistedQrSnapshot.serializer(), it) }.getOrNull()
+        }
+        val lastSuccessAt = storedSnapshot?.lastSuccessAtMs ?: defaults.stringForKey(KEY_LAST_SUCCESS_AT)?.toLongOrNull()
+        val expiresAt = storedSnapshot?.expiresAtMs ?: defaults.stringForKey(KEY_EXPIRES_AT)?.toLongOrNull()
         val manualRefreshBlockedUntilMs = defaults.stringForKey(KEY_MANUAL_REFRESH_BLOCKED_UNTIL)?.toLongOrNull()
         val result = defaults.stringForKey(KEY_LAST_CONNECTION_RESULT)?.let {
             runCatching { ConnectionCheckResult.valueOf(it) }.getOrNull()
@@ -120,7 +141,12 @@ actual object DoorDuckPlatformServices {
         val lastSyncError = defaults.stringForKey(KEY_LAST_SYNC_ERROR)?.let {
             runCatching { SyncError.valueOf(it) }.getOrNull()
         }
-        val qrImageBase64 = defaults.stringForKey(KEY_QR_IMAGE_BASE64)
+        val qrImageBase64 = storedSnapshot?.qrImageBase64 ?: defaults.stringForKey(KEY_QR_IMAGE_BASE64)
+        val imageValidationStatus = storedSnapshot?.imageValidationStatus?.let {
+            runCatching { QrImageValidationStatus.valueOf(it) }.getOrNull()
+        } ?: qrImageBase64?.let {
+            if (isValidQrImageBase64(it)) QrImageValidationStatus.VALID else QrImageValidationStatus.INVALID
+        } ?: QrImageValidationStatus.UNKNOWN
         if (
             token.isBlank() &&
             userId.isBlank() &&
@@ -142,6 +168,7 @@ actual object DoorDuckPlatformServices {
             lastConnectionResult = result,
             lastSyncError = lastSyncError,
             qrImageBase64 = qrImageBase64,
+            imageValidationStatus = imageValidationStatus,
         )
     }
 
@@ -157,6 +184,21 @@ actual object DoorDuckPlatformServices {
         saveOptionalString(defaults, KEY_LAST_CONNECTION_RESULT, state.lastConnectionResult?.name)
         saveOptionalString(defaults, KEY_LAST_SYNC_ERROR, state.lastSyncError?.name)
         saveOptionalString(defaults, KEY_QR_IMAGE_BASE64, state.qrImageBase64)
+        saveOptionalString(
+            defaults,
+            KEY_QR_SNAPSHOT_V2,
+            state.qrImageBase64?.let {
+                json.encodeToString(
+                    PersistedQrSnapshot.serializer(),
+                    PersistedQrSnapshot(
+                        qrImageBase64 = it,
+                        lastSuccessAtMs = state.lastSuccessAtMs,
+                        expiresAtMs = state.expiresAtMs,
+                        imageValidationStatus = state.imageValidationStatus.name,
+                    ),
+                )
+            },
+        )
     }
 
     actual suspend fun clearPersistedState() {
@@ -171,6 +213,7 @@ actual object DoorDuckPlatformServices {
         defaults.removeObjectForKey(KEY_LAST_CONNECTION_RESULT)
         defaults.removeObjectForKey(KEY_LAST_SYNC_ERROR)
         defaults.removeObjectForKey(KEY_QR_IMAGE_BASE64)
+        defaults.removeObjectForKey(KEY_QR_SNAPSHOT_V2)
     }
 
     actual suspend fun verifyCredentials(
@@ -199,12 +242,22 @@ actual object DoorDuckPlatformServices {
             return ConnectionCheckResult.UNAUTHORIZED
         }
 
+        val botUsername = runCatching {
+            resolveBotUsername(normalizedEndpoint, credentials)
+        }.getOrElse { throwable ->
+            return when ((throwable as? SyncFailure)?.error) {
+                SyncError.UNAUTHORIZED -> ConnectionCheckResult.UNAUTHORIZED
+                SyncError.BOT_NOT_FOUND -> ConnectionCheckResult.BOT_NOT_FOUND
+                else -> ConnectionCheckResult.NETWORK_ERROR
+            }
+        } ?: return ConnectionCheckResult.BOT_NOT_FOUND
+
         val dmResponse = runCatching {
             executeJsonRequest(
                 url = "$normalizedEndpoint/dm.create",
                 method = "POST",
                 credentials = credentials,
-                body = json.encodeToString(DmCreateRequest.serializer(), DmCreateRequest(Defaults.botUsername)),
+                body = json.encodeToString(DmCreateRequest.serializer(), DmCreateRequest(botUsername)),
             )
         }.getOrElse { return ConnectionCheckResult.NETWORK_ERROR }
 
@@ -215,11 +268,7 @@ actual object DoorDuckPlatformServices {
             else -> {
                 val dm = runCatching { json.decodeFromString<DmCreateResponse>(dmResponse.body) }.getOrNull()
                 val roomId = dm?.room?.rid ?: dm?.room?.id
-                if (dm?.success == true && !roomId.isNullOrBlank()) {
-                    ConnectionCheckResult.SUCCESS
-                } else {
-                    ConnectionCheckResult.BOT_UNAVAILABLE
-                }
+                if (dm?.success == true && !roomId.isNullOrBlank()) ConnectionCheckResult.SUCCESS else ConnectionCheckResult.BOT_UNAVAILABLE
             }
         }
     }
@@ -253,6 +302,9 @@ actual object DoorDuckPlatformServices {
         }.getOrElse { throwable ->
             return PlatformQrRefreshResult.Failure(mapSyncError(throwable))
         } ?: return PlatformQrRefreshResult.Failure(SyncError.BOT_RESPONSE_INVALID)
+        if (!isValidQrImageBase64(payload.qrImageBase64)) {
+            return PlatformQrRefreshResult.Failure(SyncError.IMAGE_DOWNLOAD_FAILED)
+        }
 
         val receivedAtMs = currentTimeMillis()
         return PlatformQrRefreshResult.Success(
@@ -279,6 +331,19 @@ actual fun formatEpochDate(value: Long): String {
     )
 }
 
+@OptIn(ExperimentalForeignApi::class, ExperimentalEncodingApi::class)
+actual fun isValidQrImageBase64(base64: String): Boolean {
+    if (base64.isBlank()) return false
+    val bytes = runCatching { Base64.decode(base64) }.getOrNull() ?: return false
+    if (bytes.isEmpty()) return false
+    val data = bytes.usePinned { pinned ->
+        CFDataCreate(null, pinned.addressOf(0).reinterpret(), bytes.size.convert())
+    } ?: return false
+    val imageSource = CGImageSourceCreateWithData(data, null) ?: return false
+    val cgImage = CGImageSourceCreateImageAtIndex(imageSource, 0u, null) ?: return false
+    return CGImageGetWidth(cgImage) > 0uL && CGImageGetHeight(cgImage) > 0uL
+}
+
 private data class HttpPayload(
     val statusCode: Int,
     val body: String,
@@ -294,9 +359,11 @@ private suspend fun executeJsonRequest(
     method: String,
     credentials: Credentials,
     body: String?,
+    queryParams: Map<String, String> = emptyMap(),
 ): HttpPayload {
     val response = when (method) {
         "GET" -> client.get(url) {
+            queryParams.forEach { (key, value) -> parameter(key, value) }
             accept(ContentType.Application.Json)
             header("X-Auth-Token", credentials.authToken)
             header("X-User-Id", credentials.userId)
@@ -329,7 +396,7 @@ private suspend fun createDirectMessageRoom(
         url = "$endpoint/dm.create",
         method = "POST",
         credentials = credentials,
-        body = json.encodeToString(DmCreateRequest.serializer(), DmCreateRequest(Defaults.botUsername)),
+        body = json.encodeToString(DmCreateRequest.serializer(), DmCreateRequest(resolveBotUsername(endpoint, credentials) ?: throw SyncFailure(SyncError.BOT_NOT_FOUND))),
     )
     if (response.statusCode == 401 || response.statusCode == 403) {
         throw SyncFailure(SyncError.UNAUTHORIZED)
@@ -462,6 +529,66 @@ private fun mapSyncError(throwable: Throwable): SyncError {
     return (throwable as? SyncFailure)?.error ?: SyncError.NETWORK
 }
 
+private suspend fun resolveBotUsername(
+    endpoint: String,
+    credentials: Credentials,
+): String? {
+    val exactResponse = executeJsonRequest(
+        url = "$endpoint/dm.create",
+        method = "POST",
+        credentials = credentials,
+        body = json.encodeToString(DmCreateRequest.serializer(), DmCreateRequest(Defaults.botUsername)),
+    )
+    if (exactResponse.statusCode == 401 || exactResponse.statusCode == 403) {
+        throw SyncFailure(SyncError.UNAUTHORIZED)
+    }
+    if (exactResponse.statusCode in 200..299) {
+        val parsed = runCatching { json.decodeFromString<DmCreateResponse>(exactResponse.body) }.getOrNull()
+        val roomId = parsed?.room?.rid ?: parsed?.room?.id
+        if (parsed?.success == true && !roomId.isNullOrBlank()) {
+            return Defaults.botUsername
+        }
+    }
+    if (exactResponse.statusCode !in listOf(400, 404)) {
+        throw SyncFailure(SyncError.BOT_RESPONSE_INVALID)
+    }
+
+    val usersResponse = executeJsonRequest(
+        url = "$endpoint/users.list",
+        method = "GET",
+        credentials = credentials,
+        body = null,
+        queryParams = mapOf(
+            "query" to """{"type":"bot","username":{"${'$'}regex":"${botUsernameRegex.pattern}","${'$'}options":"i"}}""",
+            "fields" to """{"username":1,"type":1}""",
+            "count" to "20",
+        ),
+    )
+    if (usersResponse.statusCode == 401 || usersResponse.statusCode == 403) {
+        throw SyncFailure(SyncError.UNAUTHORIZED)
+    }
+    if (usersResponse.statusCode !in 200..299) {
+        throw SyncFailure(SyncError.BOT_RESPONSE_INVALID)
+    }
+    val users = runCatching {
+        json.decodeFromString<UsersListResponse>(usersResponse.body).users
+    }.getOrDefault(emptyList())
+    return selectBotCandidate(users)
+}
+
+private fun selectBotCandidate(candidates: List<UserDto>): String? {
+    val usernames = candidates
+        .filter { it.type == "bot" }
+        .mapNotNull { it.username }
+        .distinct()
+    if (usernames.isEmpty()) return null
+    usernames.firstOrNull { it == Defaults.botUsername }?.let { return it }
+    usernames.firstOrNull { it.contains("qr-code-generator", ignoreCase = true) }?.let { return it }
+    usernames.firstOrNull { it.contains("code-generator", ignoreCase = true) }?.let { return it }
+    usernames.firstOrNull { it.contains("qr", ignoreCase = true) && it.contains("generator", ignoreCase = true) }?.let { return it }
+    return if (usernames.size == 1) usernames.first() else null
+}
+
 private fun saveOptionalString(
     defaults: NSUserDefaults,
     key: String,
@@ -583,6 +710,19 @@ private data class RunCommandResponse(
 private data class RoomDto(
     val rid: String? = null,
     @SerialName("_id") val id: String? = null,
+)
+
+@Serializable
+private data class UsersListResponse(
+    val success: Boolean = false,
+    val users: List<UserDto> = emptyList(),
+)
+
+@Serializable
+private data class UserDto(
+    @SerialName("_id") val id: String? = null,
+    val username: String? = null,
+    val type: String? = null,
 )
 
 @Serializable

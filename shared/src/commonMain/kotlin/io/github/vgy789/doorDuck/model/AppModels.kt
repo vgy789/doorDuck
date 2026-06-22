@@ -38,6 +38,7 @@ enum class SyncError {
     UNAUTHORIZED,
     RATE_LIMITED,
     NETWORK,
+    BOT_NOT_FOUND,
     BOT_RESPONSE_INVALID,
     IMAGE_DOWNLOAD_FAILED,
     UNKNOWN,
@@ -46,9 +47,23 @@ enum class SyncError {
 enum class ConnectionCheckResult {
     SUCCESS,
     UNAUTHORIZED,
+    BOT_NOT_FOUND,
     BOT_UNAVAILABLE,
     NETWORK_ERROR,
     UNKNOWN,
+}
+
+enum class QrImageValidationStatus {
+    UNKNOWN,
+    VALID,
+    INVALID,
+}
+
+enum class QrReadiness {
+    READY,
+    CHECK_REQUIRED,
+    EXPIRED,
+    MISSING_OR_INVALID,
 }
 
 data class QrCodeSnapshot(
@@ -58,6 +73,7 @@ data class QrCodeSnapshot(
     val nextAutoRefreshAtMs: Long? = null,
     val manualRefreshBlockedUntilMs: Long? = null,
     val lastSuccessAtMs: Long? = null,
+    val imageValidationStatus: QrImageValidationStatus = QrImageValidationStatus.UNKNOWN,
     val revealUntilMs: Long? = null,
     val isSyncInProgress: Boolean = false,
     val lastError: SyncError? = null,

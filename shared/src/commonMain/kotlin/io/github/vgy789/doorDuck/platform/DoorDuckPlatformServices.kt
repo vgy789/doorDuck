@@ -3,6 +3,7 @@ package io.github.vgy789.doorDuck.platform
 import io.github.vgy789.doorDuck.model.ConnectionCheckResult
 import io.github.vgy789.doorDuck.model.Credentials
 import io.github.vgy789.doorDuck.model.SyncError
+import io.github.vgy789.doorDuck.model.QrImageValidationStatus
 
 data class PersistedDoorDuckState(
     val endpoint: String,
@@ -14,6 +15,7 @@ data class PersistedDoorDuckState(
     val lastConnectionResult: ConnectionCheckResult?,
     val lastSyncError: SyncError?,
     val qrImageBase64: String?,
+    val imageValidationStatus: QrImageValidationStatus = QrImageValidationStatus.UNKNOWN,
 )
 
 sealed interface PlatformQrRefreshResult {
@@ -40,3 +42,5 @@ expect object DoorDuckPlatformServices {
 
 expect fun formatEpochMillis(value: Long): String
 expect fun formatEpochDate(value: Long): String
+
+expect fun isValidQrImageBase64(base64: String): Boolean

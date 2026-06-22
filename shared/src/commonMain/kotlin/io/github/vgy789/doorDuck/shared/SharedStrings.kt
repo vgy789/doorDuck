@@ -103,6 +103,7 @@ internal data class SharedStrings(
     val githubUrl: String,
     val connectionOk: String,
     val connectionUnauthorized: String,
+    val connectionBotNotFound: String,
     val connectionBotUnavailable: String,
     val connectionNetworkError: String,
     val connectionUnknownError: String,
@@ -124,6 +125,7 @@ internal data class SharedStrings(
         return when (result) {
             ConnectionCheckResult.SUCCESS -> connectionOk
             ConnectionCheckResult.UNAUTHORIZED -> connectionUnauthorized
+            ConnectionCheckResult.BOT_NOT_FOUND -> connectionBotNotFound
             ConnectionCheckResult.BOT_UNAVAILABLE -> connectionBotUnavailable
             ConnectionCheckResult.NETWORK_ERROR -> connectionNetworkError
             ConnectionCheckResult.UNKNOWN, null -> connectionUnknownError
@@ -136,6 +138,7 @@ internal data class SharedStrings(
             SyncError.UNAUTHORIZED -> syncErrorUnauthorized
             SyncError.RATE_LIMITED -> syncErrorRateLimited
             SyncError.NETWORK -> syncErrorNetwork
+            SyncError.BOT_NOT_FOUND -> connectionBotNotFound
             SyncError.BOT_RESPONSE_INVALID -> syncErrorBotInvalid
             SyncError.IMAGE_DOWNLOAD_FAILED -> syncErrorImageDownload
             SyncError.UNKNOWN, null -> syncErrorUnknown
@@ -246,6 +249,7 @@ internal data class SharedStrings(
             githubUrl = "https://github.com/vgy789/doorDuck",
             connectionOk = "Connection successful.",
             connectionUnauthorized = "Invalid Token or Id.",
+            connectionBotNotFound = "QR bot was not found on this Rocket.Chat server.",
             connectionBotUnavailable = "Bot is unavailable or inaccessible.",
             connectionNetworkError = "Network error during connection check.",
             connectionUnknownError = "No successful connection check yet.",
@@ -363,6 +367,7 @@ internal data class SharedStrings(
             githubUrl = "https://github.com/vgy789/doorDuck",
             connectionOk = "Подключение успешно.",
             connectionUnauthorized = "Неверный токен или Id.",
+            connectionBotNotFound = "На этом сервере Rocket.Chat не найден бот для QR.",
             connectionBotUnavailable = "Бот недоступен или к нему нет доступа.",
             connectionNetworkError = "Сетевая ошибка во время проверки подключения.",
             connectionUnknownError = "Успешная проверка подключения ещё не выполнялась.",

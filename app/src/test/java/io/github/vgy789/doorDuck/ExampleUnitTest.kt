@@ -3,6 +3,9 @@ package io.github.vgy789.doorDuck
 import io.github.vgy789.doorDuck.domain.ConnectionCheckErrorMapper
 import io.github.vgy789.doorDuck.domain.SyncPolicy
 import io.github.vgy789.doorDuck.model.ConnectionCheckResult
+import io.github.vgy789.doorDuck.model.QrImageValidationStatus
+import io.github.vgy789.doorDuck.model.QrReadiness
+import io.github.vgy789.doorDuck.model.SyncError
 import io.github.vgy789.doorDuck.ui.InputSanitizer
 import io.github.vgy789.doorDuck.ui.RocketCredentialsExtractor
 import io.github.vgy789.doorDuck.ui.WizardStateMachine
@@ -107,6 +110,7 @@ class ExampleUnitTest {
                 localImagePath = "/tmp/qr.png",
                 expiresAtMs = 1_000L,
                 nextAutoRefreshAtMs = 2_000L,
+                lastError = null,
                 nowMs = 1_500L,
             ),
         )
@@ -117,6 +121,7 @@ class ExampleUnitTest {
                 localImagePath = "/tmp/qr.png",
                 expiresAtMs = 1_000L,
                 nextAutoRefreshAtMs = 2_000L,
+                lastError = null,
                 nowMs = 2_000L,
             ),
         )
@@ -127,6 +132,7 @@ class ExampleUnitTest {
                 localImagePath = "/tmp/qr.png",
                 expiresAtMs = 1_000L,
                 nextAutoRefreshAtMs = 1_000L,
+                lastError = null,
                 nowMs = 2_000L,
             ),
         )
@@ -140,42 +146,74 @@ class ExampleUnitTest {
     }
 
     @Test
-    fun auto_retry_slots_are_anchored_to_expire_time() {
-        val expireAtMs = 1_000L
-
+    fun auto_retry_slots_are_relative_to_now() {
         assertEquals(
-            expireAtMs + 1L * 60L * 60L * 1000L,
+            10_000L + 1L * 60L * 60L * 1000L,
             SyncPolicy.nextRetryAtMs(
-                expiresAtMs = expireAtMs,
                 attempt = 0,
-                nowMs = expireAtMs + 10_000L,
+                nowMs = 10_000L,
             ),
         )
 
         assertEquals(
-            expireAtMs + 3L * 60L * 60L * 1000L,
+            20_000L + 2L * 60L * 60L * 1000L,
             SyncPolicy.nextRetryAtMs(
-                expiresAtMs = expireAtMs,
                 attempt = 1,
-                nowMs = expireAtMs + 70L * 60L * 1000L,
+                nowMs = 20_000L,
             ),
         )
     }
 
     @Test
     fun auto_retry_respects_bot_cooldown_if_it_pushes_later_than_slot() {
-        val expireAtMs = 1_000L
-        val nowMs = expireAtMs + 50L * 60L * 1000L
+        val nowMs = 50L * 60L * 1000L
         val cooldownMs = 20L * 60L * 1000L
 
         assertEquals(
-            nowMs + cooldownMs,
+            nowMs + 60L * 60L * 1000L,
             SyncPolicy.nextRetryAtMs(
-                expiresAtMs = expireAtMs,
                 attempt = 0,
                 nowMs = nowMs,
                 minDelayMs = cooldownMs,
             ),
+        )
+    }
+
+    @Test
+    fun unauthorized_blocks_automatic_refresh() {
+        assertFalse(
+            SyncPolicy.shouldRefreshNow(
+                autoRefreshEnabled = true,
+                localImagePath = "/tmp/qr.png",
+                expiresAtMs = 1_000L,
+                nextAutoRefreshAtMs = 1_000L,
+                lastError = SyncError.UNAUTHORIZED,
+                nowMs = 2_000L,
+            ),
+        )
+    }
+
+    @Test
+    fun readiness_covers_all_states() {
+        assertEquals(
+            QrReadiness.MISSING_OR_INVALID,
+            SyncPolicy.readiness(false, QrImageValidationStatus.UNKNOWN, expiresAtMs = null, nowMs = 0L),
+        )
+        assertEquals(
+            QrReadiness.CHECK_REQUIRED,
+            SyncPolicy.readiness(true, QrImageValidationStatus.UNKNOWN, expiresAtMs = null, nowMs = 0L),
+        )
+        assertEquals(
+            QrReadiness.READY,
+            SyncPolicy.readiness(true, QrImageValidationStatus.VALID, expiresAtMs = 2_000L, nowMs = 1_000L),
+        )
+        assertEquals(
+            QrReadiness.EXPIRED,
+            SyncPolicy.readiness(true, QrImageValidationStatus.VALID, expiresAtMs = 2_000L, nowMs = 2_000L),
+        )
+        assertEquals(
+            QrReadiness.MISSING_OR_INVALID,
+            SyncPolicy.readiness(true, QrImageValidationStatus.INVALID, expiresAtMs = 2_000L, nowMs = 1_000L),
         )
     }
 }

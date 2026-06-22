@@ -50,6 +50,7 @@
     <string name="connection_ok">Connection successful.</string>
     <string name="connection_checking">Checking connection…</string>
     <string name="connection_unauthorized">Invalid Rocket.Chat credentials: user Id or Token.</string>
+    <string name="connection_bot_not_found">QR bot was not found on this Rocket.Chat server.</string>
     <string name="connection_bot_unavailable">Bot is unavailable or not accessible.</string>
     <string name="connection_network_error">Network error during connection check.</string>
     <string name="connection_unknown_error">Unknown error during connection check.</string>
@@ -73,6 +74,8 @@
     <string name="status_qr_refreshing">Refreshing QR</string>
     <string name="status_qr_needs_attention">Sync attention required</string>
     <string name="status_qr_missing">QR has not been loaded</string>
+    <string name="status_qr_check_required">QR needs local check</string>
+    <string name="status_qr_expired">QR expired</string>
     <string name="connection_section_title">Connection</string>
     <string name="connection_section_hint">Manage endpoint, user Id, and Token here.</string>
     <string name="token_help_body">Open the Rocket.Chat tokens page and create the required credentials.</string>
@@ -84,6 +87,7 @@
     <string name="status_next_auto_refresh">Next automatic attempt: %1$s</string>
     <string name="status_auto_refresh_disabled">Automatic renewal is disabled.</string>
     <string name="status_last_error">Last error: %1$s</string>
+    <string name="status_warning">Warning: %1$s</string>
     <string name="status_toggle_details">Show or hide status details</string>
     <string name="status_none">none</string>
     <string name="status_not_found">not found</string>
@@ -138,6 +142,12 @@
     <string name="clear_data_title">Reset doorDuck</string>
     <string name="clear_data_hint">Delete token, user Id, QR image, settings, and local cache from this device.</string>
     <string name="clear_data_confirm_hint">This action cannot be undone.</string>
+    <string name="token_recovery_title">Access recovery</string>
+    <string name="token_recovery_body">The saved QR stays available until it expires. Automatic retries are stopped until you verify a new token or reset the app data.</string>
+    <string name="token_recovery_action">Start over</string>
+    <string name="notification_channel_sync">doorDuck sync</string>
+    <string name="notification_token_expired_title">doorDuck needs a new token</string>
+    <string name="notification_token_expired_body">Open the app and update Rocket.Chat credentials to resume QR sync.</string>
     <string name="donate_hint">If you feel like it, you can buy the author a can of condensed milk.</string>
     <string name="donate_toggle_text">🤍 Купить автору сгущёнку</string>
     <string name="donate_transfer_sbp">SBP transfer</string>

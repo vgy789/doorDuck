@@ -11,6 +11,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import io.github.vgy789.doorDuck.model.AppState
 import io.github.vgy789.doorDuck.model.Defaults
 import io.github.vgy789.doorDuck.model.QrCodeSnapshot
+import io.github.vgy789.doorDuck.model.QrImageValidationStatus
 import io.github.vgy789.doorDuck.model.SyncError
 import io.github.vgy789.doorDuck.model.UserSettings
 import io.github.vgy789.doorDuck.ui.InputSanitizer
@@ -34,6 +35,7 @@ class SettingsStore(private val context: Context) {
         val revealUntilMs = longPreferencesKey("reveal_until_ms")
         val syncInProgress = booleanPreferencesKey("sync_in_progress")
         val lastError = stringPreferencesKey("last_error")
+        val imageValidationStatus = stringPreferencesKey("image_validation_status")
     }
 
     fun observeAppState(hasCredentialsFlow: Flow<Boolean>): Flow<AppState> {
@@ -107,7 +109,13 @@ class SettingsStore(private val context: Context) {
         }
     }
 
-    suspend fun saveSyncSuccess(path: String, receivedAtMs: Long, expiresAtMs: Long?, nextAutoRefreshAtMs: Long?) {
+    suspend fun saveSyncSuccess(
+        path: String,
+        receivedAtMs: Long,
+        expiresAtMs: Long?,
+        nextAutoRefreshAtMs: Long?,
+        imageValidationStatus: QrImageValidationStatus,
+    ) {
         context.dataStore.edit { mutablePrefs ->
             mutablePrefs[Keys.qrPath] = path
             mutablePrefs[Keys.receivedAtMs] = receivedAtMs
@@ -122,6 +130,7 @@ class SettingsStore(private val context: Context) {
                 mutablePrefs[Keys.nextAutoRefreshAtMs] = nextAutoRefreshAtMs
             }
             mutablePrefs[Keys.lastSuccessAtMs] = receivedAtMs
+            mutablePrefs[Keys.imageValidationStatus] = imageValidationStatus.name
             mutablePrefs.remove(Keys.lastError)
             mutablePrefs[Keys.syncInProgress] = false
         }
@@ -137,6 +146,18 @@ class SettingsStore(private val context: Context) {
     suspend fun clearInProgress() {
         context.dataStore.edit { mutablePrefs ->
             mutablePrefs[Keys.syncInProgress] = false
+        }
+    }
+
+    suspend fun clearSyncError() {
+        context.dataStore.edit { mutablePrefs ->
+            mutablePrefs.remove(Keys.lastError)
+        }
+    }
+
+    suspend fun setImageValidationStatus(status: QrImageValidationStatus) {
+        context.dataStore.edit { mutablePrefs ->
+            mutablePrefs[Keys.imageValidationStatus] = status.name
         }
     }
 
@@ -168,6 +189,9 @@ class SettingsStore(private val context: Context) {
             lastError = this[Keys.lastError]?.let {
                 runCatching { SyncError.valueOf(it) }.getOrNull()
             },
+            imageValidationStatus = this[Keys.imageValidationStatus]?.let {
+                runCatching { QrImageValidationStatus.valueOf(it) }.getOrNull()
+            } ?: QrImageValidationStatus.UNKNOWN,
         )
     }
 }

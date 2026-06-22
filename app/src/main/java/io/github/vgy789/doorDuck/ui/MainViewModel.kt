@@ -11,6 +11,8 @@ import io.github.vgy789.doorDuck.model.ConnectionCheckResult
 import io.github.vgy789.doorDuck.model.Credentials
 import io.github.vgy789.doorDuck.model.Defaults
 import io.github.vgy789.doorDuck.model.IntensiveCampus
+import io.github.vgy789.doorDuck.model.QrImageValidationStatus
+import io.github.vgy789.doorDuck.model.QrReadiness
 import io.github.vgy789.doorDuck.model.SyncError
 import io.github.vgy789.doorDuck.domain.SyncPolicy
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -50,6 +52,7 @@ data class MainUiState(
     val autoRefreshEnabled: Boolean = true,
     val maxBrightnessEnabled: Boolean = false,
     val qrImagePath: String? = null,
+    val imageValidationStatus: QrImageValidationStatus = QrImageValidationStatus.UNKNOWN,
     val lastSuccessAtMs: Long? = null,
     val expiresAtMs: Long? = null,
     val nextAutoRefreshAtMs: Long? = null,
@@ -70,12 +73,24 @@ class MainViewModel(
 
     private var initialized = false
     private var dueRefreshQueued = false
+    private var validationMigrationDone = false
 
     init {
         viewModelScope.launch {
             appContainer.settingsStore
                 .observeAppState(appContainer.credentialsStore.observeHasCredentials())
                 .collect { state ->
+                    if (!validationMigrationDone && state.snapshot.localImagePath != null &&
+                        state.snapshot.imageValidationStatus == QrImageValidationStatus.UNKNOWN
+                    ) {
+                        validationMigrationDone = true
+                        val migratedStatus = if (appContainer.imageStore.isValidImage(state.snapshot.localImagePath)) {
+                            QrImageValidationStatus.VALID
+                        } else {
+                            QrImageValidationStatus.INVALID
+                        }
+                        appContainer.settingsStore.setImageValidationStatus(migratedStatus)
+                    }
                     if (
                         state.hasCredentials &&
                         state.settings.autoRefreshEnabled &&
@@ -87,6 +102,7 @@ class MainViewModel(
                             localImagePath = state.snapshot.localImagePath,
                             expiresAtMs = state.snapshot.expiresAtMs,
                             nextAutoRefreshAtMs = state.snapshot.nextAutoRefreshAtMs,
+                            lastError = state.snapshot.lastError,
                         )
                     ) {
                         dueRefreshQueued = true
@@ -106,6 +122,7 @@ class MainViewModel(
                             autoRefreshEnabled = state.settings.autoRefreshEnabled,
                             maxBrightnessEnabled = state.settings.maxBrightnessEnabled,
                             qrImagePath = state.snapshot.localImagePath,
+                            imageValidationStatus = state.snapshot.imageValidationStatus,
                             lastSuccessAtMs = state.snapshot.lastSuccessAtMs,
                             expiresAtMs = state.snapshot.expiresAtMs,
                             nextAutoRefreshAtMs = state.snapshot.nextAutoRefreshAtMs,
@@ -387,6 +404,7 @@ class MainViewModel(
                             localImagePath = snapshot.localImagePath,
                             expiresAtMs = expiresAtMs,
                             nextAutoRefreshAtMs = nextAutoRefreshAtMs,
+                            lastError = snapshot.lastError,
                         )
                     ) {
                         appContainer.workScheduler.enqueueAutomaticRefresh(delayMs = 0L, attempt = 0)
@@ -432,6 +450,24 @@ class MainViewModel(
             )
             initialized = true
             dueRefreshQueued = false
+        }
+    }
+
+    fun startCredentialRecovery() {
+        _uiState.update {
+            it.copy(
+                mode = ScreenMode.WIZARD,
+                wizardStep = WizardStep.CREDENTIALS,
+                wizardEndpoint = it.endpoint,
+                wizardEndpointPreset = it.endpoint.toEndpointPreset(),
+                wizardIntensiveCampus = it.endpoint.toIntensiveCampus(),
+                wizardCredentialsBlob = "",
+                wizardAuthToken = "",
+                wizardUserId = "",
+                lastConnectionCheckResult = null,
+                connectionCheckPassed = false,
+                infoMessage = null,
+            )
         }
     }
 
@@ -506,6 +542,7 @@ class MainViewModel(
             !forceAutoRefreshDisabled &&
             !normalizedEndpoint.isIntensiveEndpoint()
         appContainer.settingsStore.updateCredentialsSettings(normalizedEndpoint, autoRefreshEnabled)
+        appContainer.settingsStore.clearSyncError()
         if (!autoRefreshEnabled) {
             appContainer.settingsStore.setNextAutoRefreshAt(null)
             appContainer.workScheduler.cancelAutomaticRefresh()
@@ -535,12 +572,22 @@ class MainViewModel(
         val resId = when (result) {
             ConnectionCheckResult.SUCCESS -> R.string.connection_ok
             ConnectionCheckResult.UNAUTHORIZED -> R.string.connection_unauthorized
+            ConnectionCheckResult.BOT_NOT_FOUND -> R.string.connection_bot_not_found
             ConnectionCheckResult.BOT_UNAVAILABLE -> R.string.connection_bot_unavailable
             ConnectionCheckResult.NETWORK_ERROR -> R.string.connection_network_error
             ConnectionCheckResult.UNKNOWN -> R.string.connection_unknown_error
         }
         return appContainer.appContext.getString(resId)
     }
+}
+
+fun MainUiState.qrReadiness(nowMs: Long = System.currentTimeMillis()): QrReadiness {
+    return SyncPolicy.readiness(
+        hasImage = !qrImagePath.isNullOrBlank(),
+        validationStatus = imageValidationStatus,
+        expiresAtMs = expiresAtMs,
+        nowMs = nowMs,
+    )
 }
 
 private fun String.isIntensiveEndpoint(): Boolean {

@@ -68,12 +68,14 @@ import io.github.vgy789.doorDuck.model.ConnectionCheckResult
 import io.github.vgy789.doorDuck.model.Credentials
 import io.github.vgy789.doorDuck.model.Defaults
 import io.github.vgy789.doorDuck.model.IntensiveCampus
+import io.github.vgy789.doorDuck.model.QrImageValidationStatus
 import io.github.vgy789.doorDuck.model.SyncError
 import io.github.vgy789.doorDuck.domain.SyncPolicy
 import io.github.vgy789.doorDuck.platform.DoorDuckPlatformServices
 import io.github.vgy789.doorDuck.platform.PersistedDoorDuckState
 import io.github.vgy789.doorDuck.platform.PlatformQrRefreshResult
 import io.github.vgy789.doorDuck.platform.formatEpochMillis
+import io.github.vgy789.doorDuck.platform.isValidQrImageBase64
 import io.github.vgy789.doorDuck.ui.InputSanitizer
 import io.github.vgy789.doorDuck.ui.RocketCredentialsExtractor
 import io.github.vgy789.doorDuck.ui.WizardStep
@@ -154,6 +156,7 @@ private fun DoorDuckSharedScreen() {
     var manualRefreshBlockedUntilMs by remember { mutableStateOf<Long?>(null) }
     var lastSyncError by remember { mutableStateOf<SyncError?>(null) }
     var qrImageBase64 by remember { mutableStateOf<String?>(null) }
+    var imageValidationStatus by remember { mutableStateOf(QrImageValidationStatus.UNKNOWN) }
     var infoMessage by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
@@ -172,6 +175,7 @@ private fun DoorDuckSharedScreen() {
             lastConnectionResult = stored.lastConnectionResult
             lastSyncError = stored.lastSyncError
             qrImageBase64 = stored.qrImageBase64
+            imageValidationStatus = stored.imageValidationStatus
             connectionCheckPassed = stored.lastConnectionResult == ConnectionCheckResult.SUCCESS
             hasStoredCredentials = stored.userId.isNotBlank() && stored.authToken.isNotBlank()
             screenMode = if (hasStoredCredentials) ScreenMode.HOME else ScreenMode.WIZARD
@@ -211,6 +215,7 @@ private fun DoorDuckSharedScreen() {
                     lastConnectionResult = result,
                     lastSyncError = lastSyncError,
                     qrImageBase64 = qrImageBase64,
+                    imageValidationStatus = imageValidationStatus,
                 ),
             )
         }
@@ -313,6 +318,11 @@ private fun DoorDuckSharedScreen() {
             ) {
                 is PlatformQrRefreshResult.Success -> {
                     qrImageBase64 = result.qrImageBase64
+                    imageValidationStatus = if (isValidQrImageBase64(result.qrImageBase64)) {
+                        QrImageValidationStatus.VALID
+                    } else {
+                        QrImageValidationStatus.INVALID
+                    }
                     lastSuccessAtMs = result.receivedAtMs
                     expiresAtMs = result.expiresAtMs
                     lastSyncError = null
@@ -462,6 +472,7 @@ private fun DoorDuckSharedScreen() {
                         lastConnectionResult = lastConnectionResult,
                         lastSyncError = lastSyncError,
                         qrImageBase64 = qrImageBase64,
+                        imageValidationStatus = imageValidationStatus,
                         isCheckingConnection = isCheckingConnection,
                         isRefreshingQr = isRefreshingQr,
                         onEndpointChange = {
@@ -509,6 +520,7 @@ private fun DoorDuckSharedScreen() {
                         lastConnectionResult = lastConnectionResult,
                         lastSyncError = lastSyncError,
                         qrImageBase64 = qrImageBase64,
+                        imageValidationStatus = imageValidationStatus,
                         isCheckingConnection = isCheckingConnection,
                         isRefreshingQr = isRefreshingQr,
                         connectionExpanded = true,
@@ -1200,6 +1212,7 @@ private fun HomeDashboardScreen(
     lastConnectionResult: ConnectionCheckResult?,
     lastSyncError: SyncError?,
     qrImageBase64: String?,
+    imageValidationStatus: QrImageValidationStatus,
     isCheckingConnection: Boolean,
     isRefreshingQr: Boolean,
     onEndpointChange: (String) -> Unit,
@@ -1221,6 +1234,7 @@ private fun HomeDashboardScreen(
             lastConnectionResult = lastConnectionResult,
             lastSyncError = lastSyncError,
             qrImageBase64 = qrImageBase64,
+            imageValidationStatus = imageValidationStatus,
             isRefreshingQr = isRefreshingQr,
         )
         DoorDuckQrCard(
@@ -1246,6 +1260,7 @@ private fun SettingsDashboardScreen(
     lastConnectionResult: ConnectionCheckResult?,
     lastSyncError: SyncError?,
     qrImageBase64: String?,
+    imageValidationStatus: QrImageValidationStatus,
     isCheckingConnection: Boolean,
     isRefreshingQr: Boolean,
     connectionExpanded: Boolean,

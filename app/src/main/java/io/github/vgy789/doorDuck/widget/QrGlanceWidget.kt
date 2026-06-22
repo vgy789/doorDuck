@@ -25,6 +25,7 @@ import io.github.vgy789.doorDuck.MainActivity
 import io.github.vgy789.doorDuck.R
 import io.github.vgy789.doorDuck.domain.SyncPolicy
 import io.github.vgy789.doorDuck.model.QrCodeSnapshot
+import io.github.vgy789.doorDuck.model.QrReadiness
 
 class QrGlanceWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: android.content.Context, id: androidx.glance.GlanceId) {
@@ -34,7 +35,11 @@ class QrGlanceWidget : GlanceAppWidget() {
         val uiState = WidgetUiState(
             configured = hasCredentials,
             snapshot = snapshot,
-            isExpired = SyncPolicy.isExpired(snapshot.expiresAtMs),
+            readiness = SyncPolicy.readiness(
+                hasImage = !snapshot.localImagePath.isNullOrBlank(),
+                validationStatus = snapshot.imageValidationStatus,
+                expiresAtMs = snapshot.expiresAtMs,
+            ),
         )
 
         provideContent {
@@ -54,7 +59,7 @@ private fun WidgetContent(uiState: WidgetUiState) {
         contentAlignment = Alignment.Center,
     ) {
         when {
-            uiState.configured && bitmap != null && !uiState.isExpired -> {
+            uiState.configured && bitmap != null && uiState.readiness == QrReadiness.READY -> {
                 Image(
                     provider = ImageProvider(bitmap),
                     contentDescription = context.getString(R.string.widget_qr_content_description),
@@ -93,5 +98,5 @@ private fun WidgetContent(uiState: WidgetUiState) {
 private data class WidgetUiState(
     val configured: Boolean,
     val snapshot: QrCodeSnapshot,
-    val isExpired: Boolean,
+    val readiness: QrReadiness,
 )

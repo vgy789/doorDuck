@@ -39,6 +39,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.vgy789.doorDuck.model.ConnectionCheckResult
+import io.github.vgy789.doorDuck.model.QrImageValidationStatus
+import io.github.vgy789.doorDuck.model.QrReadiness
 import io.github.vgy789.doorDuck.model.SyncError
 import io.github.vgy789.doorDuck.domain.SyncPolicy
 import io.github.vgy789.doorDuck.platform.formatEpochDate
@@ -157,14 +159,19 @@ internal fun DoorDuckStatusCard(
     lastConnectionResult: ConnectionCheckResult?,
     lastSyncError: SyncError?,
     qrImageBase64: String?,
+    imageValidationStatus: QrImageValidationStatus,
     isRefreshingQr: Boolean,
 ) {
     val dark = isDoorDuckDarkTheme()
-    val hasActiveQr = !qrImageBase64.isNullOrBlank() && !SyncPolicy.isExpired(expiresAtMs)
+    val readiness = SyncPolicy.readiness(
+        hasImage = !qrImageBase64.isNullOrBlank(),
+        validationStatus = imageValidationStatus,
+        expiresAtMs = expiresAtMs,
+    )
     val headline = when {
         isRefreshingQr -> strings.statusRefreshingHeadline
-        lastSyncError != null -> strings.statusNeedsRefreshHeadline
-        hasActiveQr -> strings.statusFreshHeadline
+        readiness == QrReadiness.READY -> strings.statusFreshHeadline
+        readiness == QrReadiness.CHECK_REQUIRED -> strings.statusNeedsRefreshHeadline
         else -> strings.statusMissingHeadline
     }
     val containerColor = if (dark) Color(0xFF1F2A1D) else Color(0xFFF3FBEF)
@@ -223,6 +230,13 @@ internal fun DoorDuckStatusCard(
                 color = textColor,
                 style = MaterialTheme.typography.bodyMedium,
             )
+            if (lastSyncError != null) {
+                Text(
+                    text = "${strings.statusLastError}: ${strings.syncErrorMessage(lastSyncError)}",
+                    color = textColor,
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
         }
     }
 }

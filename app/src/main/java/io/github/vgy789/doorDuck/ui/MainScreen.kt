@@ -105,6 +105,7 @@ import io.github.vgy789.doorDuck.config.AndroidEndpointSecrets
 import io.github.vgy789.doorDuck.domain.SyncPolicy
 import io.github.vgy789.doorDuck.model.Defaults
 import io.github.vgy789.doorDuck.model.IntensiveCampus
+import io.github.vgy789.doorDuck.model.QrReadiness
 import io.github.vgy789.doorDuck.model.SyncError
 import io.github.vgy789.doorDuck.widget.QrGlanceWidgetReceiver
 import java.text.DateFormat
@@ -920,6 +921,11 @@ private fun SettingsDashboard(
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         StatusCard(state = state)
+        if (state.lastError == SyncError.UNAUTHORIZED) {
+            TokenRecoveryCard(
+                onResetData = viewModel::clearAllData,
+            )
+        }
         QrCard(
             state = state,
             refreshCooldownNowMs = refreshCooldownNowMs,
@@ -1002,26 +1008,48 @@ private fun ClearDataCard(onClearData: () -> Unit) {
 @Composable
 private fun StatusCard(state: MainUiState) {
     var detailsExpanded by remember { mutableStateOf(false) }
-    val hasActiveQr = state.qrImagePath != null && !SyncPolicy.isExpired(state.expiresAtMs)
+    val readiness = state.qrReadiness()
     val headline = when {
         state.syncInProgress -> stringResource(R.string.status_qr_refreshing)
-        state.lastError == SyncError.RATE_LIMITED && hasActiveQr -> stringResource(R.string.status_qr_fresh)
-        state.lastError != null -> stringResource(R.string.status_qr_needs_attention)
-        hasActiveQr -> stringResource(R.string.status_qr_fresh)
+        readiness == QrReadiness.READY -> stringResource(R.string.status_qr_fresh)
+        readiness == QrReadiness.CHECK_REQUIRED -> stringResource(R.string.status_qr_check_required)
+        readiness == QrReadiness.EXPIRED -> stringResource(R.string.status_qr_expired)
         else -> stringResource(R.string.status_qr_missing)
     }
     val dark = MaterialTheme.colorScheme.background.red < 0.2f
-    val containerColor = if (dark) Color(0xFF1F2A1D) else Color(0xFFF3FBEF)
-    val borderColor = if (dark) Color(0xFF355B34) else Color(0xFFB8DBA9)
-    val badgeColor = if (dark) Color(0xFF88D89F) else Color(0xFFCBEFBC)
-    val headlineColor = if (dark) Color(0xFFA6F0BA) else Color(0xFF247A39)
+    val palette = when (readiness) {
+        QrReadiness.READY -> StatusPalette(
+            container = if (dark) Color(0xFF1F2A1D) else Color(0xFFF3FBEF),
+            border = if (dark) Color(0xFF355B34) else Color(0xFFB8DBA9),
+            badge = if (dark) Color(0xFF88D89F) else Color(0xFFCBEFBC),
+            headline = if (dark) Color(0xFFA6F0BA) else Color(0xFF247A39),
+            symbolContainer = Color.Transparent,
+            symbol = if (dark) Color(0xFF153A20) else Color(0xFF1F5C2F),
+        )
+        QrReadiness.CHECK_REQUIRED -> StatusPalette(
+            container = if (dark) Color(0xFF332612) else Color(0xFFFFF2D3),
+            border = if (dark) Color(0xFF6A5123) else Color(0xFFEACD8A),
+            badge = if (dark) Color(0xFFF2C64D) else Color(0xFFF5D68A),
+            headline = if (dark) Color(0xFFFFE7B5) else Color(0xFF6F4700),
+            symbolContainer = Color.Transparent,
+            symbol = if (dark) Color(0xFF51360A) else Color(0xFF7A4A00),
+        )
+        else -> StatusPalette(
+            container = if (dark) Color(0xFF331E1E) else Color(0xFFFDEAEA),
+            border = if (dark) Color(0xFF6A3636) else Color(0xFFE5AAAA),
+            badge = if (dark) Color(0xFFDF8C8C) else Color(0xFFF2B9B9),
+            headline = if (dark) Color(0xFFFFC8C8) else Color(0xFF9C2F2F),
+            symbolContainer = Color.Transparent,
+            symbol = if (dark) Color(0xFF5A2222) else Color(0xFF8D2525),
+        )
+    }
     val textColor = if (dark) Color(0xFFF3EBDD) else Color(0xFF4E4335)
 
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(28.dp),
-        colors = CardDefaults.cardColors(containerColor = containerColor),
-        border = BorderStroke(1.dp, borderColor),
+        colors = CardDefaults.cardColors(containerColor = palette.container),
+        border = BorderStroke(1.dp, palette.border),
     ) {
         Column(
             modifier = Modifier
@@ -1035,18 +1063,27 @@ private fun StatusCard(state: MainUiState) {
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Surface(
-                    modifier = Modifier.size(54.dp),
+                    modifier = Modifier.size(42.dp),
                     shape = CircleShape,
-                    color = badgeColor,
+                    color = palette.badge,
                 ) {
                     Box(contentAlignment = Alignment.Center) {
-                        Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = Color(0xFF167335))
+                        Icon(
+                            imageVector = when (readiness) {
+                                QrReadiness.READY -> Icons.Filled.CheckCircle
+                                QrReadiness.CHECK_REQUIRED -> Icons.Filled.Refresh
+                                else -> Icons.Filled.Close
+                            },
+                            contentDescription = null,
+                            tint = palette.symbol,
+                            modifier = Modifier.size(20.dp),
+                        )
                     }
                 }
                 Text(
                     headline,
                     modifier = Modifier.weight(1f),
-                    color = headlineColor,
+                    color = palette.headline,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                 )
@@ -1082,6 +1119,53 @@ private fun StatusCard(state: MainUiState) {
                         color = textColor,
                     )
                 }
+                if (state.lastError != null) {
+                    Text(
+                        stringResource(R.string.status_warning, state.lastError.toDisplayString()),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = textColor,
+                    )
+                }
+            }
+        }
+    }
+}
+
+private data class StatusPalette(
+    val container: Color,
+    val border: Color,
+    val badge: Color,
+    val headline: Color,
+    val symbolContainer: Color,
+    val symbol: Color,
+)
+
+@Composable
+private fun TokenRecoveryCard(
+    onResetData: () -> Unit,
+) {
+    DashboardCard {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(
+                text = stringResource(R.string.token_recovery_title),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text = stringResource(R.string.token_recovery_body),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            OutlinedButton(
+                onClick = onResetData,
+                modifier = Modifier.fillMaxWidth(),
+                shape = DashboardActionButtonShape,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.56f)),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = MaterialTheme.colorScheme.error.copy(alpha = 0.85f),
+                ),
+            ) {
+                Text(stringResource(R.string.token_recovery_action))
             }
         }
     }
@@ -1312,6 +1396,7 @@ private fun ConnectionCard(
                     val connectionStatusText = when (result) {
                         io.github.vgy789.doorDuck.model.ConnectionCheckResult.SUCCESS -> stringResource(R.string.connection_ok)
                         io.github.vgy789.doorDuck.model.ConnectionCheckResult.UNAUTHORIZED -> stringResource(R.string.connection_unauthorized)
+                        io.github.vgy789.doorDuck.model.ConnectionCheckResult.BOT_NOT_FOUND -> stringResource(R.string.connection_bot_not_found)
                         io.github.vgy789.doorDuck.model.ConnectionCheckResult.BOT_UNAVAILABLE -> stringResource(R.string.connection_bot_unavailable)
                         io.github.vgy789.doorDuck.model.ConnectionCheckResult.NETWORK_ERROR -> stringResource(R.string.connection_network_error)
                         io.github.vgy789.doorDuck.model.ConnectionCheckResult.UNKNOWN -> stringResource(R.string.connection_unknown_error)
@@ -1745,6 +1830,7 @@ private fun SyncError.toDisplayString(): String {
         SyncError.UNAUTHORIZED -> stringResource(R.string.sync_error_unauthorized)
         SyncError.RATE_LIMITED -> stringResource(R.string.sync_error_rate_limited)
         SyncError.NETWORK -> stringResource(R.string.sync_error_network)
+        SyncError.BOT_NOT_FOUND -> stringResource(R.string.connection_bot_not_found)
         SyncError.BOT_RESPONSE_INVALID -> stringResource(R.string.sync_error_bot_response_invalid)
         SyncError.IMAGE_DOWNLOAD_FAILED -> stringResource(R.string.sync_error_image_download_failed)
         SyncError.UNKNOWN -> stringResource(R.string.sync_error_unknown)

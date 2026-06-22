@@ -50,6 +50,7 @@
     <string name="connection_ok">Соединение успешно проверено.</string>
     <string name="connection_checking">Проверяем соединение…</string>
     <string name="connection_unauthorized">Неверные Rocket.Chat credentials: Id или Token.</string>
+    <string name="connection_bot_not_found">На этом сервере Rocket.Chat не найден бот для QR.</string>
     <string name="connection_bot_unavailable">Бот недоступен или нет доступа к нему.</string>
     <string name="connection_network_error">Сетевая ошибка при проверке соединения.</string>
     <string name="connection_unknown_error">Неизвестная ошибка при проверке соединения.</string>
@@ -73,6 +74,8 @@
     <string name="status_qr_refreshing">Обновляем QR</string>
     <string name="status_qr_needs_attention">Синхронизации нужно внимание</string>
     <string name="status_qr_missing">QR ещё не загружен</string>
+    <string name="status_qr_check_required">QR требует локальной проверки</string>
+    <string name="status_qr_expired">Срок QR истёк</string>
     <string name="connection_section_title">Подключение</string>
     <string name="connection_section_hint">Управляй адресом API, Id и токеном здесь.</string>
     <string name="token_help_body">Открой страницу токенов Rocket.Chat и получи нужные данные.</string>
@@ -84,6 +87,7 @@
     <string name="status_next_auto_refresh">Следующая автоматическая попытка: %1$s</string>
     <string name="status_auto_refresh_disabled">Автопродление отключено.</string>
     <string name="status_last_error">Последняя ошибка: %1$s</string>
+    <string name="status_warning">Предупреждение: %1$s</string>
     <string name="status_toggle_details">Показать или скрыть детали статуса</string>
     <string name="status_none">нет</string>
     <string name="status_not_found">не найдено</string>
@@ -138,6 +142,12 @@
     <string name="clear_data_title">Сброс doorDuck</string>
     <string name="clear_data_hint">Удалить token, user Id, QR-изображение, настройки и локальный кэш с этого устройства.</string>
     <string name="clear_data_confirm_hint">Это действие нельзя отменить.</string>
+    <string name="token_recovery_title">Восстановление доступа</string>
+    <string name="token_recovery_body">Текущий QR будет работать до конца срока. Чтобы снова обновлять QR, добавь новый токен или сбрось данные приложения.</string>
+    <string name="token_recovery_action">Начать заново</string>
+    <string name="notification_channel_sync">Синхронизация doorDuck</string>
+    <string name="notification_token_expired_title">doorDuck нужен новый токен</string>
+    <string name="notification_token_expired_body">Открой приложение и добавь новый токен Rocket.Chat, чтобы снова обновлять QR.</string>
     <string name="donate_hint">Если захочется, можно угостить автора банкой сгущёнки.</string>
     <string name="donate_toggle_text">🤍 Купить автору сгущёнку</string>
     <string name="donate_transfer_sbp">Перевод по СБП</string>
