@@ -5,7 +5,25 @@ on:
     branches:
       - main
       - master
+    paths:
+      - "app/**"
+      - "shared/**"
+      - "gradle/**"
+      - "build.gradle.kts"
+      - "settings.gradle.kts"
+      - "gradle.properties"
+      - "gradlew"
+      - ".github/workflows/ci.yml"
   pull_request:
+    paths:
+      - "app/**"
+      - "shared/**"
+      - "gradle/**"
+      - "build.gradle.kts"
+      - "settings.gradle.kts"
+      - "gradle.properties"
+      - "gradlew"
+      - ".github/workflows/ci.yml"
 
 permissions:
   contents: read
