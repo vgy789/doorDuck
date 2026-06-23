@@ -5,6 +5,11 @@ on:
     tags:
       - "v*"
   workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version in vX.Y.Z format"
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -34,6 +39,26 @@ jobs:
 
       - name: Make gradlew executable
         run: chmod +x ./gradlew
+
+      - name: Resolve release version
+        id: version
+        shell: bash
+        env:
+          RELEASE_REF: ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
+        run: |
+          set -euo pipefail
+          if [[ ! "${RELEASE_REF}" =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+            echo "Release version must match vX.Y.Z: ${RELEASE_REF}" >&2
+            exit 1
+          fi
+          MAJOR="${BASH_REMATCH[1]}"
+          MINOR="${BASH_REMATCH[2]}"
+          PATCH="${BASH_REMATCH[3]}"
+          VERSION_NAME="${MAJOR}.${MINOR}.${PATCH}"
+          VERSION_CODE=$((MAJOR * 1000000 + MINOR * 1000 + PATCH))
+          echo "tag=${RELEASE_REF}" >> "${GITHUB_OUTPUT}"
+          echo "name=${VERSION_NAME}" >> "${GITHUB_OUTPUT}"
+          echo "code=${VERSION_CODE}" >> "${GITHUB_OUTPUT}"
 
       - name: Validate signing secrets
         shell: bash
@@ -73,14 +98,14 @@ jobs:
           ANDROID_SIGNING_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
           DONATE_PHONE_VALUE: ${{ secrets.DONATE_PHONE_VALUE }}
           DONATE_CARD_VALUE: ${{ secrets.DONATE_CARD_VALUE }}
-        run: ./gradlew :app:assembleRelease
+        run: ./gradlew :app:assembleRelease -PreleaseVersionName=${{ steps.version.outputs.name }} -PreleaseVersionCode=${{ steps.version.outputs.code }}
 
       - name: Prepare release assets
         id: assets
         shell: bash
         run: |
           set -euo pipefail
-          TAG_NAME="${GITHUB_REF_NAME}"
+          TAG_NAME="${{ steps.version.outputs.tag }}"
 
           APK_PATH="app/build/outputs/apk/release/app-release.apk"
           if [[ ! -f "${APK_PATH}" ]]; then
@@ -104,7 +129,7 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name }}
+          tag_name: ${{ steps.version.outputs.tag }}
           generate_release_notes: true
           files: |
             ${{ steps.assets.outputs.apk_file }}

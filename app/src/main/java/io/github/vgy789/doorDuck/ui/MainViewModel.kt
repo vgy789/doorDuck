@@ -15,6 +15,15 @@ import io.github.vgy789.doorDuck.model.QrImageValidationStatus
 import io.github.vgy789.doorDuck.model.QrReadiness
 import io.github.vgy789.doorDuck.model.SyncError
 import io.github.vgy789.doorDuck.domain.SyncPolicy
+import io.github.vgy789.doorDuck.update.InstallResult
+import io.github.vgy789.doorDuck.update.UpdateCheckResult
+import io.github.vgy789.doorDuck.update.UpdateMessage
+import io.github.vgy789.doorDuck.update.UpdateStatus
+import io.github.vgy789.doorDuck.update.UpdateUiState
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -63,6 +72,7 @@ data class MainUiState(
     val connectionCheckPassed: Boolean = false,
     val lastError: SyncError? = null,
     val infoMessage: String? = null,
+    val update: UpdateUiState = UpdateUiState(),
 )
 
 class MainViewModel(
@@ -74,6 +84,7 @@ class MainViewModel(
     private var initialized = false
     private var dueRefreshQueued = false
     private var validationMigrationDone = false
+    private var downloadJob: Job? = null
 
     init {
         viewModelScope.launch {
@@ -150,6 +161,141 @@ class MainViewModel(
                         }
                     }
                 }
+        }
+        viewModelScope.launch {
+            val settings = appContainer.updateRepository.settings()
+            val cached = appContainer.updateRepository.cachedResult()
+            val cachedRelease = (cached as? UpdateCheckResult.Available)?.release
+            val readyToInstall = cachedRelease != null &&
+                settings.readyReleaseTag == cachedRelease.tag &&
+                appContainer.apkUpdateManager.hasReadyApk()
+            if (cached == UpdateCheckResult.UpToDate && settings.readyReleaseTag != null) {
+                appContainer.updateSettingsStore.setReadyReleaseTag(null)
+                appContainer.apkUpdateManager.clear()
+            }
+            _uiState.update { current ->
+                current.copy(
+                    update = current.update.copy(
+                        automaticChecksEnabled = settings.automaticChecksEnabled,
+                        status = when {
+                            readyToInstall -> UpdateStatus.READY_TO_INSTALL
+                            cached is UpdateCheckResult.Available -> UpdateStatus.AVAILABLE
+                            cached == UpdateCheckResult.UpToDate -> UpdateStatus.UP_TO_DATE
+                            else -> UpdateStatus.IDLE
+                        },
+                        release = cachedRelease,
+                    ),
+                )
+            }
+            uiState.filter { it.mode == ScreenMode.SETTINGS }.first()
+            if (appContainer.updateRepository.shouldRunAutomaticCheck()) {
+                checkForUpdates(manual = false)
+            }
+        }
+    }
+
+    fun setAutomaticUpdateChecksEnabled(enabled: Boolean) {
+        _uiState.update { it.copy(update = it.update.copy(automaticChecksEnabled = enabled, message = null)) }
+        viewModelScope.launch {
+            appContainer.updateRepository.setAutomaticChecksEnabled(enabled)
+            if (enabled && appContainer.updateRepository.shouldRunAutomaticCheck()) {
+                checkForUpdates(manual = false)
+            }
+        }
+    }
+
+    fun checkForUpdates() {
+        viewModelScope.launch { checkForUpdates(manual = true) }
+    }
+
+    private suspend fun checkForUpdates(manual: Boolean) {
+        if (_uiState.value.update.status == UpdateStatus.CHECKING ||
+            _uiState.value.update.status == UpdateStatus.DOWNLOADING
+        ) return
+        _uiState.update { it.copy(update = it.update.copy(status = UpdateStatus.CHECKING, message = null)) }
+        when (val result = appContainer.updateRepository.check()) {
+            is UpdateCheckResult.Available -> _uiState.update {
+                it.copy(update = it.update.copy(status = UpdateStatus.AVAILABLE, release = result.release, message = null))
+            }
+            UpdateCheckResult.UpToDate -> _uiState.update {
+                it.copy(update = it.update.copy(status = UpdateStatus.UP_TO_DATE, release = null, message = null))
+            }
+            is UpdateCheckResult.Failed -> _uiState.update {
+                val cachedRelease = it.update.release
+                it.copy(
+                    update = it.update.copy(
+                        status = if (!manual && cachedRelease != null) UpdateStatus.AVAILABLE else if (manual) UpdateStatus.FAILED else UpdateStatus.IDLE,
+                        message = if (manual) UpdateMessage.CHECK_FAILED else null,
+                    ),
+                )
+            }
+        }
+    }
+
+    fun downloadUpdate() {
+        val release = _uiState.value.update.release ?: return
+        if (downloadJob?.isActive == true) return
+        downloadJob = viewModelScope.launch {
+            appContainer.updateSettingsStore.setReadyReleaseTag(null)
+            _uiState.update {
+                it.copy(update = it.update.copy(status = UpdateStatus.DOWNLOADING, downloadProgress = 0, message = null))
+            }
+            appContainer.apkUpdateManager.downloadAndVerify(release) { progress ->
+                _uiState.update { current ->
+                    current.copy(update = current.update.copy(downloadProgress = progress))
+                }
+            }.onSuccess {
+                appContainer.updateSettingsStore.setReadyReleaseTag(release.tag)
+                _uiState.update {
+                    it.copy(update = it.update.copy(status = UpdateStatus.READY_TO_INSTALL, downloadProgress = 100, message = null))
+                }
+            }.onFailure {
+                if (it is CancellationException) return@onFailure
+                _uiState.update {
+                    it.copy(update = it.update.copy(status = UpdateStatus.FAILED, message = UpdateMessage.DOWNLOAD_FAILED))
+                }
+            }
+        }
+    }
+
+    fun cancelUpdateDownload() {
+        downloadJob?.cancel()
+        downloadJob = null
+        appContainer.apkUpdateManager.cancelDownload()
+        viewModelScope.launch { appContainer.updateSettingsStore.setReadyReleaseTag(null) }
+        _uiState.update {
+            it.copy(update = it.update.copy(status = UpdateStatus.AVAILABLE, downloadProgress = 0, message = null))
+        }
+    }
+
+    fun installUpdate() {
+        when (appContainer.apkUpdateManager.install()) {
+            InstallResult.InstallerOpened -> _uiState.update {
+                it.copy(update = it.update.copy(waitingForInstallPermission = false, message = null))
+            }
+            InstallResult.PermissionRequired -> _uiState.update {
+                it.copy(
+                    update = it.update.copy(
+                        waitingForInstallPermission = true,
+                        message = UpdateMessage.INSTALL_PERMISSION_REQUIRED,
+                    ),
+                )
+            }
+            is InstallResult.Failed -> {
+                appContainer.apkUpdateManager.clear()
+                viewModelScope.launch { appContainer.updateSettingsStore.setReadyReleaseTag(null) }
+                _uiState.update { current ->
+                    current.copy(update = current.update.copy(message = UpdateMessage.INSTALL_FAILED))
+                }
+            }
+        }
+    }
+
+    fun openUpdateInstallPermissionSettings() {
+        appContainer.apkUpdateManager.openInstallPermissionSettings().onFailure {
+            _uiState.update { current ->
+                current.copy(update = current.update.copy(message = UpdateMessage.INSTALL_FAILED))
+            }
         }
     }
 
@@ -436,6 +582,8 @@ class MainViewModel(
         viewModelScope.launch {
             appContainer.workScheduler.cancelAllRefreshWork()
             appContainer.settingsStore.clear()
+            appContainer.updateSettingsStore.clear()
+            appContainer.apkUpdateManager.clear()
             appContainer.credentialsStore.clear()
             File(appContainer.appContext.applicationInfo.dataDir, "shared_prefs")
                 .listFiles()

@@ -58,6 +58,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -101,6 +102,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.vgy789.doorDuck.R
+import io.github.vgy789.doorDuck.BuildConfig
 import io.github.vgy789.doorDuck.config.AndroidEndpointSecrets
 import io.github.vgy789.doorDuck.domain.SyncPolicy
 import io.github.vgy789.doorDuck.model.Defaults
@@ -108,6 +110,9 @@ import io.github.vgy789.doorDuck.model.IntensiveCampus
 import io.github.vgy789.doorDuck.model.QrReadiness
 import io.github.vgy789.doorDuck.model.SyncError
 import io.github.vgy789.doorDuck.widget.QrGlanceWidgetReceiver
+import io.github.vgy789.doorDuck.update.UpdateMessage
+import io.github.vgy789.doorDuck.update.UpdateStatus
+import io.github.vgy789.doorDuck.update.UpdateUiState
 import java.text.DateFormat
 import java.util.Date
 import kotlinx.coroutines.delay
@@ -934,9 +939,198 @@ private fun SettingsDashboard(
             onMaxBrightnessEnabledChange = viewModel::setMaxBrightnessEnabled,
         )
         WidgetInstallCard()
+        UpdateCenterCard(
+            state = state.update,
+            onAutomaticChecksChange = viewModel::setAutomaticUpdateChecksEnabled,
+            onCheck = viewModel::checkForUpdates,
+            onDownload = viewModel::downloadUpdate,
+            onCancelDownload = viewModel::cancelUpdateDownload,
+            onInstall = viewModel::installUpdate,
+            onOpenInstallPermission = viewModel::openUpdateInstallPermissionSettings,
+        )
         ClearDataCard(onClearData = viewModel::clearAllData)
         CreditsCard()
         DonateCard()
+    }
+}
+
+@Composable
+private fun UpdateCenterCard(
+    state: UpdateUiState,
+    onAutomaticChecksChange: (Boolean) -> Unit,
+    onCheck: () -> Unit,
+    onDownload: () -> Unit,
+    onCancelDownload: () -> Unit,
+    onInstall: () -> Unit,
+    onOpenInstallPermission: () -> Unit,
+) {
+    var changelogExpanded by remember(state.release?.tag) { mutableStateOf(false) }
+    val isBusy = state.status == UpdateStatus.CHECKING || state.status == UpdateStatus.DOWNLOADING
+
+    DashboardCard {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.update_center_title),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text = stringResource(R.string.update_current_version, BuildConfig.VERSION_NAME),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.update_auto_check),
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Medium,
+                    )
+                    Text(
+                        text = stringResource(R.string.update_auto_check_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Switch(
+                    checked = state.automaticChecksEnabled,
+                    onCheckedChange = onAutomaticChecksChange,
+                    enabled = !isBusy,
+                )
+            }
+
+            when (state.status) {
+                UpdateStatus.CHECKING -> {
+                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                    Text(stringResource(R.string.update_checking), style = MaterialTheme.typography.bodySmall)
+                }
+                UpdateStatus.UP_TO_DATE -> Text(
+                    stringResource(R.string.update_up_to_date),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+                UpdateStatus.DOWNLOADING -> {
+                    LinearProgressIndicator(
+                        progress = { state.downloadProgress / 100f },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Text(
+                        stringResource(R.string.update_downloading, state.downloadProgress),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    TextButton(onClick = onCancelDownload, modifier = Modifier.align(Alignment.End)) {
+                        Text(stringResource(R.string.update_cancel_download))
+                    }
+                }
+                else -> Unit
+            }
+
+            state.message?.let { message ->
+                Text(
+                    text = stringResource(
+                        when (message) {
+                            UpdateMessage.CHECK_FAILED -> R.string.update_check_failed
+                            UpdateMessage.DOWNLOAD_FAILED -> R.string.update_download_failed
+                            UpdateMessage.INSTALL_FAILED -> R.string.update_install_failed
+                            UpdateMessage.INSTALL_PERMISSION_REQUIRED -> R.string.update_install_permission_required
+                        },
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (message == UpdateMessage.INSTALL_PERMISSION_REQUIRED) {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    } else {
+                        MaterialTheme.colorScheme.error
+                    },
+                )
+            }
+
+            state.release?.let { release ->
+                if (state.status != UpdateStatus.DOWNLOADING) {
+                    Text(
+                        text = stringResource(R.string.update_available, release.tag.removePrefix("v")),
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                    if (release.publishedAt.isNotBlank()) {
+                        Text(
+                            text = stringResource(R.string.update_published_at, release.publishedAt.take(10)),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    if (release.changelog.isNotBlank()) {
+                        Text(
+                            text = release.changelog,
+                            maxLines = if (changelogExpanded) Int.MAX_VALUE else 4,
+                            overflow = TextOverflow.Ellipsis,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        TextButton(
+                            onClick = { changelogExpanded = !changelogExpanded },
+                            modifier = Modifier.align(Alignment.End),
+                        ) {
+                            Text(
+                                stringResource(
+                                    if (changelogExpanded) R.string.update_changelog_less else R.string.update_changelog_more,
+                                ),
+                            )
+                        }
+                    }
+                }
+            }
+
+            when {
+                state.status == UpdateStatus.READY_TO_INSTALL && state.waitingForInstallPermission -> {
+                    Button(
+                        onClick = onOpenInstallPermission,
+                        modifier = Modifier.fillMaxWidth().height(DashboardActionButtonHeight),
+                        shape = DashboardActionButtonShape,
+                    ) {
+                        Text(stringResource(R.string.update_allow_installation))
+                    }
+                    OutlinedButton(
+                        onClick = onInstall,
+                        modifier = Modifier.fillMaxWidth().height(DashboardActionButtonHeight),
+                        shape = DashboardActionButtonShape,
+                    ) {
+                        Text(stringResource(R.string.update_continue_installation))
+                    }
+                }
+                state.status == UpdateStatus.READY_TO_INSTALL -> Button(
+                    onClick = onInstall,
+                    modifier = Modifier.fillMaxWidth().height(DashboardActionButtonHeight),
+                    shape = DashboardActionButtonShape,
+                ) {
+                    Text(stringResource(R.string.update_install))
+                }
+                state.release != null && state.status != UpdateStatus.CHECKING && state.status != UpdateStatus.DOWNLOADING -> Button(
+                    onClick = onDownload,
+                    modifier = Modifier.fillMaxWidth().height(DashboardActionButtonHeight),
+                    shape = DashboardActionButtonShape,
+                ) {
+                    Text(stringResource(R.string.update_download))
+                }
+            }
+
+            if (!isBusy && state.status != UpdateStatus.READY_TO_INSTALL) {
+                OutlinedButton(
+                    onClick = onCheck,
+                    modifier = Modifier.fillMaxWidth().height(DashboardActionButtonHeight),
+                    shape = DashboardActionButtonShape,
+                ) {
+                    Text(stringResource(R.string.update_check_now))
+                }
+            }
+        }
     }
 }
 

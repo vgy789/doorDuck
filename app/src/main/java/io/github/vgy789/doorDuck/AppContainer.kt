@@ -9,9 +9,16 @@ import io.github.vgy789.doorDuck.domain.SyncNotificationManager
 import io.github.vgy789.doorDuck.domain.QrWorkScheduler
 import io.github.vgy789.doorDuck.network.RocketChatClientFactory
 import io.github.vgy789.doorDuck.widget.WidgetUpdateCoordinator
+import io.github.vgy789.doorDuck.update.ApkUpdateManager
+import io.github.vgy789.doorDuck.update.UpdateRepository
+import io.github.vgy789.doorDuck.update.UpdateSettingsStore
 import kotlinx.serialization.json.Json
 
 class AppContainer(context: Context) {
+    private val json = Json {
+        ignoreUnknownKeys = true
+        explicitNulls = false
+    }
     val appContext: Context = context.applicationContext
     val settingsStore = SettingsStore(context)
     val credentialsStore = SecureCredentialsStore(context)
@@ -19,12 +26,10 @@ class AppContainer(context: Context) {
     val workScheduler = QrWorkScheduler(context)
     val syncNotificationManager = SyncNotificationManager(context)
     val widgetUpdateCoordinator = WidgetUpdateCoordinator(context)
-    val clientFactory = RocketChatClientFactory(
-        json = Json {
-            ignoreUnknownKeys = true
-            explicitNulls = false
-        },
-    )
+    val clientFactory = RocketChatClientFactory(json = json)
+    val updateSettingsStore = UpdateSettingsStore(context, json)
+    val updateRepository = UpdateRepository(updateSettingsStore, json)
+    val apkUpdateManager = ApkUpdateManager(context.applicationContext)
     val syncService = QrSyncService(
         settingsStore = settingsStore,
         credentialsStore = credentialsStore,
@@ -36,5 +41,6 @@ class AppContainer(context: Context) {
 
     init {
         workScheduler.ensureReliabilityWatchdog()
+        apkUpdateManager.cleanup()
     }
 }

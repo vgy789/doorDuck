@@ -47,6 +47,20 @@ val hasCiReleaseSigning = listOf(
     signingKeyPassword,
 ).all { !it.isNullOrBlank() }
 
+val appVersionName = providers.gradleProperty("releaseVersionName").orElse("1.4.0").get()
+val versionMatch = Regex("^(\\d+)\\.(\\d+)\\.(\\d+)$").matchEntire(appVersionName)
+    ?: error("App version must use X.Y.Z format: $appVersionName")
+val calculatedVersionCode = versionMatch.groupValues[1].toInt() * 1_000_000 +
+    versionMatch.groupValues[2].toInt() * 1_000 +
+    versionMatch.groupValues[3].toInt()
+val appVersionCode = providers.gradleProperty("releaseVersionCode")
+    .orNull
+    ?.toIntOrNull()
+    ?: calculatedVersionCode
+require(appVersionCode == calculatedVersionCode) {
+    "Version code $appVersionCode does not match version $appVersionName (expected $calculatedVersionCode)"
+}
+
 android {
     namespace = "io.github.vgy789.doorDuck"
     compileSdk = 36
@@ -55,8 +69,8 @@ android {
         applicationId = "io.github.vgy789.doorDuck"
         minSdk = 24
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.3"
+        versionCode = appVersionCode
+        versionName = appVersionName
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
