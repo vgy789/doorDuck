@@ -752,7 +752,7 @@ private fun WizardInstructionBlock(
             SharedStepText(
                 number = "2",
                 text = strings.instructionStep2,
-                highlights = listOf("verter@student.21-school.ru"),
+                highlights = listOf("@student.21-school.ru"),
             )
             OutlinedButton(
                 onClick = onOpenTokensPage,

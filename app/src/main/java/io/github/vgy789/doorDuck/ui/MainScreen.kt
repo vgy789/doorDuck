@@ -350,7 +350,7 @@ private fun WizardInstructionBlock(
             StepText(
                 number = "2",
                 text = stringResource(R.string.instruction_step_2),
-                highlights = listOf("verter@student.21-school.ru"),
+                highlights = listOf("@student.21-school.ru"),
             )
             TokenLinkButton(
                 enabled = tokensButtonEnabled,
