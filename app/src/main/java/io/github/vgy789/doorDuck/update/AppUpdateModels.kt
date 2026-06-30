@@ -49,8 +49,11 @@ enum class UpdateStatus {
 enum class UpdateMessage {
     CHECK_FAILED,
     DOWNLOAD_FAILED,
+    DOWNLOAD_INTEGRITY_FAILED,
     INSTALL_FAILED,
     INSTALL_PERMISSION_REQUIRED,
+    APK_SIGNATURE_MISMATCH,
+    APK_INCOMPATIBLE,
 }
 
 data class UpdateUiState(
@@ -60,7 +63,62 @@ data class UpdateUiState(
     val downloadProgress: Int = 0,
     val message: UpdateMessage? = null,
     val waitingForInstallPermission: Boolean = false,
+    val isDialogVisible: Boolean = false,
 )
+
+internal fun shouldShowUpdateDialog(
+    hasRelease: Boolean,
+    status: UpdateStatus,
+    delayElapsed: Boolean,
+    promptDismissed: Boolean,
+    manual: Boolean = false,
+): Boolean {
+    if (manual) return hasRelease || status == UpdateStatus.FAILED
+    return delayElapsed && !promptDismissed && hasRelease && status != UpdateStatus.UP_TO_DATE
+}
+
+internal fun selectReleaseForInstallation(
+    checkResult: UpdateCheckResult,
+    fallbackRelease: AppRelease?,
+): AppRelease? = when (checkResult) {
+    is UpdateCheckResult.Available -> checkResult.release
+    is UpdateCheckResult.Failed -> fallbackRelease
+    UpdateCheckResult.UpToDate -> null
+}
+
+internal fun ApkCompatibilityIssue.toUpdateMessage(): UpdateMessage = when (this) {
+    ApkCompatibilityIssue.SIGNATURE_MISMATCH -> UpdateMessage.APK_SIGNATURE_MISMATCH
+    ApkCompatibilityIssue.INVALID_APK,
+    ApkCompatibilityIssue.NOT_NEWER,
+    -> UpdateMessage.APK_INCOMPATIBLE
+}
+
+internal fun UpdateMessage.canRetryUpdate(): Boolean = when (this) {
+    UpdateMessage.CHECK_FAILED,
+    UpdateMessage.DOWNLOAD_FAILED,
+    UpdateMessage.DOWNLOAD_INTEGRITY_FAILED,
+    UpdateMessage.INSTALL_FAILED,
+    -> true
+    UpdateMessage.INSTALL_PERMISSION_REQUIRED,
+    UpdateMessage.APK_SIGNATURE_MISMATCH,
+    UpdateMessage.APK_INCOMPATIBLE,
+    -> false
+}
+
+internal fun AppRelease.changelogItems(): List<String> = changelog
+    .lineSequence()
+    .mapNotNull { line ->
+        val trimmed = line.trim()
+        if (trimmed.startsWith("#") || trimmed == "```") return@mapNotNull null
+        val item = trimmed
+            .replace(Regex("^[-*+]\\s+"), "")
+            .replace(Regex("^\\d+[.)]\\s+"), "")
+            .replace("**", "")
+            .replace("`", "")
+            .trim()
+        item.takeIf(String::isNotBlank)
+    }
+    .toList()
 
 @Serializable
 internal data class GitHubReleaseDto(

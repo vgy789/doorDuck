@@ -78,6 +78,34 @@ class AppUpdateTest {
         }
     }
 
+    @Test
+    fun installationPreflightUsesFreshReleaseOrSilentFallback() {
+        val cached = appRelease("v1.5.1")
+        val fresh = appRelease("v1.5.2")
+
+        assertEquals(
+            fresh,
+            selectReleaseForInstallation(UpdateCheckResult.Available(fresh), cached),
+        )
+        assertEquals(
+            cached,
+            selectReleaseForInstallation(UpdateCheckResult.Failed(IllegalStateException("offline")), cached),
+        )
+        assertNull(selectReleaseForInstallation(UpdateCheckResult.UpToDate, cached))
+    }
+
+    @Test
+    fun incompatibleSignatureIsNotRetryableAsDownload() {
+        assertEquals(
+            UpdateMessage.APK_SIGNATURE_MISMATCH,
+            ApkCompatibilityIssue.SIGNATURE_MISMATCH.toUpdateMessage(),
+        )
+        assertFalse(UpdateMessage.APK_SIGNATURE_MISMATCH.canRetryUpdate())
+        assertFalse(UpdateMessage.APK_INCOMPATIBLE.canRetryUpdate())
+        assertTrue(UpdateMessage.DOWNLOAD_FAILED.canRetryUpdate())
+        assertTrue(UpdateMessage.DOWNLOAD_INTEGRITY_FAILED.canRetryUpdate())
+    }
+
     private fun releaseDto(assets: List<GitHubReleaseAssetDto>) = GitHubReleaseDto(
         tagName = "v1.5.0",
         name = "doorDuck 1.5.0",
@@ -85,5 +113,15 @@ class AppUpdateTest {
         publishedAt = "2026-06-23T00:00:00Z",
         htmlUrl = "https://github.com/vgy789/doorDuck/releases/tag/v1.5.0",
         assets = assets,
+    )
+
+    private fun appRelease(tag: String) = AppRelease(
+        tag = tag,
+        title = tag,
+        changelog = "",
+        publishedAt = "",
+        releaseUrl = "https://github.com/vgy789/doorDuck/releases/tag/$tag",
+        apkUrl = "https://github.com/vgy789/doorDuck/releases/download/$tag/doorDuck-latest.apk",
+        checksumUrl = "https://github.com/vgy789/doorDuck/releases/download/$tag/doorDuck-latest.apk.sha256",
     )
 }

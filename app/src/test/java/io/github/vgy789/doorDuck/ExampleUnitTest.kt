@@ -10,6 +10,10 @@ import io.github.vgy789.doorDuck.ui.InputSanitizer
 import io.github.vgy789.doorDuck.ui.RocketCredentialsExtractor
 import io.github.vgy789.doorDuck.ui.WizardStateMachine
 import io.github.vgy789.doorDuck.ui.WizardStep
+import io.github.vgy789.doorDuck.update.AppRelease
+import io.github.vgy789.doorDuck.update.changelogItems
+import io.github.vgy789.doorDuck.update.shouldShowUpdateDialog
+import io.github.vgy789.doorDuck.update.UpdateStatus
 import java.io.IOException
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.ResponseBody.Companion.toResponseBody
@@ -25,6 +29,70 @@ import retrofit2.Response
  * See [testing documentation](http://d.android.com/tools/testing).
  */
 class ExampleUnitTest {
+    @Test
+    fun update_changelog_is_converted_to_clean_list_items() {
+        val release = AppRelease(
+            tag = "v1.5.1",
+            title = "doorDuck 1.5.1",
+            changelog = """
+                ## Что изменилось
+                - Исправлено обновление QR
+                * Добавлен новый экран
+                1. Улучшена установка
+            """.trimIndent(),
+            publishedAt = "",
+            releaseUrl = "",
+            apkUrl = "",
+            checksumUrl = "",
+        )
+
+        assertEquals(
+            listOf(
+                "Исправлено обновление QR",
+                "Добавлен новый экран",
+                "Улучшена установка",
+            ),
+            release.changelogItems(),
+        )
+    }
+
+    @Test
+    fun update_dialog_respects_delay_dismissal_and_manual_checks() {
+        assertFalse(
+            shouldShowUpdateDialog(
+                hasRelease = true,
+                status = UpdateStatus.AVAILABLE,
+                delayElapsed = false,
+                promptDismissed = false,
+            ),
+        )
+        assertTrue(
+            shouldShowUpdateDialog(
+                hasRelease = true,
+                status = UpdateStatus.AVAILABLE,
+                delayElapsed = true,
+                promptDismissed = false,
+            ),
+        )
+        assertFalse(
+            shouldShowUpdateDialog(
+                hasRelease = true,
+                status = UpdateStatus.AVAILABLE,
+                delayElapsed = true,
+                promptDismissed = true,
+            ),
+        )
+        assertTrue(
+            shouldShowUpdateDialog(
+                hasRelease = false,
+                status = UpdateStatus.FAILED,
+                delayElapsed = false,
+                promptDismissed = true,
+                manual = true,
+            ),
+        )
+    }
+
     @Test
     fun sanitizer_removesWhitespaceEverywhere() {
         assertEquals("abc123", InputSanitizer.noWhitespace("  a b c \n 1 2 3  "))

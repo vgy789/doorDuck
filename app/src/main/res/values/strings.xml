@@ -18,7 +18,7 @@
     <string name="token_label">X-Auth-Token</string>
     <string name="user_id_label">Rocket.Chat user ID</string>
     <string name="manual_refresh">Refresh QR now</string>
-    <string name="app_qr_title">Current QR in app</string>
+    <string name="app_qr_title">Current pass</string>
     <string name="app_qr_empty">No QR code in local storage yet. Tap \"Refresh QR now\".</string>
 
     <string name="action_start">Start</string>
@@ -150,6 +150,8 @@
     <string name="notification_token_expired_body">Open doorDuck and set it up again to get new QR codes.</string>
     <string name="update_center_title">App updates</string>
     <string name="update_current_version">Current version: %1$s</string>
+    <string name="update_available_inline">%1$s available</string>
+    <string name="update_current">(up to date)</string>
     <string name="update_auto_check">Check automatically</string>
     <string name="update_auto_check_hint">Notify you when a new version is available.</string>
     <string name="update_check_now">Check for updates</string>
@@ -167,8 +169,19 @@
     <string name="update_continue_installation">Continue installation</string>
     <string name="update_check_failed">Could not check for updates. Check your connection and try again.</string>
     <string name="update_download_failed">Could not download the update. Try again.</string>
+    <string name="update_integrity_failed">The downloaded file is damaged or failed verification. Try downloading it again.</string>
     <string name="update_install_failed">Could not open update installation.</string>
     <string name="update_install_permission_required">Allow update installation in Android settings, then return to doorDuck.</string>
+    <string name="update_signature_mismatch">This version cannot be updated automatically. Uninstall doorDuck, install the new version manually.</string>
+    <string name="update_apk_incompatible">The update was downloaded, but this APK is incompatible with the installed build.</string>
+    <string name="update_dialog_title">Update doorDuck</string>
+    <string name="update_changes_title">What’s changed</string>
+    <string name="update_later">Later</string>
+    <string name="update_retry">Retry</string>
+    <string name="update_close">Close</string>
+    <string name="update_status_available">Update %1$s available</string>
+    <string name="update_status_downloading">Downloading update — %1$d%%</string>
+    <string name="update_status_ready">Update ready to install</string>
     <string name="donate_hint">If you feel like it, you can buy the author a can of condensed milk.</string>
     <string name="donate_toggle_text">🤍 Buy the author condensed milk</string>
     <string name="donate_transfer_sbp">SBP transfer</string>

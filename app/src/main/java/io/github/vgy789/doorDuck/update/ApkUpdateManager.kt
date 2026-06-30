@@ -14,6 +14,7 @@ import java.security.MessageDigest
 import java.net.URI
 import java.util.Locale
 import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
@@ -24,8 +25,27 @@ import kotlin.coroutines.coroutineContext
 sealed interface InstallResult {
     data object InstallerOpened : InstallResult
     data object PermissionRequired : InstallResult
+    data class Incompatible(val issue: ApkCompatibilityIssue, val cause: Throwable) : InstallResult
     data class Failed(val cause: Throwable) : InstallResult
 }
+
+enum class ApkCompatibilityIssue {
+    INVALID_APK,
+    NOT_NEWER,
+    SIGNATURE_MISMATCH,
+}
+
+sealed interface ApkDownloadResult {
+    data class Ready(val file: File) : ApkDownloadResult
+    data class DownloadFailed(val cause: Throwable) : ApkDownloadResult
+    data class IntegrityFailed(val cause: Throwable) : ApkDownloadResult
+    data class Incompatible(val issue: ApkCompatibilityIssue, val cause: Throwable) : ApkDownloadResult
+}
+
+private class ApkCompatibilityException(
+    val issue: ApkCompatibilityIssue,
+    message: String,
+) : SecurityException(message)
 
 class ApkUpdateManager(
     private val context: Context,
@@ -55,35 +75,50 @@ class ApkUpdateManager(
 
     fun hasReadyApk(): Boolean = readyApk.isFile
 
+    fun canInstallPackages(): Boolean =
+        Build.VERSION.SDK_INT < Build.VERSION_CODES.O || context.packageManager.canRequestPackageInstalls()
+
     suspend fun downloadAndVerify(
         release: AppRelease,
         onProgress: (Int) -> Unit,
-    ): Result<File> = withContext(Dispatchers.IO) {
-        runCatching {
+    ): ApkDownloadResult = withContext(Dispatchers.IO) {
+        val tempApk = File(updateDir, "doorDuck-update.apk.part")
+        try {
             requireTrustedReleaseUrl(release.apkUrl)
             requireTrustedReleaseUrl(release.checksumUrl)
             updateDir.mkdirs()
-            val tempApk = File(updateDir, "doorDuck-update.apk.part")
             tempApk.delete()
             readyApk.delete()
 
-            try {
-                val expectedChecksum = downloadText(release.checksumUrl).extractSha256()
-                    ?: throw IOException("Release checksum is invalid")
-                downloadFile(release.apkUrl, tempApk, onProgress)
-                val actualChecksum = sha256(tempApk)
-                if (!actualChecksum.equals(expectedChecksum, ignoreCase = true)) {
-                    throw SecurityException("Downloaded APK checksum does not match")
-                }
-                verifyApk(tempApk)
-                if (!tempApk.renameTo(readyApk)) throw IOException("Cannot finalize downloaded APK")
-                onProgress(100)
-                readyApk
-            } catch (throwable: Throwable) {
+            val expectedChecksum = downloadText(release.checksumUrl).extractSha256()
+                ?: return@withContext ApkDownloadResult.IntegrityFailed(
+                    IOException("Release checksum is invalid"),
+                )
+            downloadFile(release.apkUrl, tempApk, onProgress)
+            val actualChecksum = sha256(tempApk)
+            if (!actualChecksum.equals(expectedChecksum, ignoreCase = true)) {
                 tempApk.delete()
-                readyApk.delete()
-                throw throwable
+                return@withContext ApkDownloadResult.IntegrityFailed(
+                    SecurityException("Downloaded APK checksum does not match"),
+                )
             }
+            try {
+                verifyApk(tempApk)
+            } catch (error: ApkCompatibilityException) {
+                tempApk.delete()
+                return@withContext ApkDownloadResult.Incompatible(error.issue, error)
+            }
+            if (!tempApk.renameTo(readyApk)) throw IOException("Cannot finalize downloaded APK")
+            onProgress(100)
+            ApkDownloadResult.Ready(readyApk)
+        } catch (cancelled: CancellationException) {
+            tempApk.delete()
+            readyApk.delete()
+            throw cancelled
+        } catch (throwable: Throwable) {
+            tempApk.delete()
+            readyApk.delete()
+            ApkDownloadResult.DownloadFailed(throwable)
         }
     }
 
@@ -93,9 +128,9 @@ class ApkUpdateManager(
 
     fun install(): InstallResult {
         if (!readyApk.isFile) return InstallResult.Failed(IOException("Downloaded APK is missing"))
-        return runCatching {
+        return try {
             verifyApk(readyApk)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !context.packageManager.canRequestPackageInstalls()) {
+            if (!canInstallPackages()) {
                 return InstallResult.PermissionRequired
             }
             val uri = FileProvider.getUriForFile(context, "${context.packageName}.updates", readyApk)
@@ -105,7 +140,11 @@ class ApkUpdateManager(
             }
             context.startActivity(intent)
             InstallResult.InstallerOpened
-        }.getOrElse(InstallResult::Failed)
+        } catch (error: ApkCompatibilityException) {
+            InstallResult.Incompatible(error.issue, error)
+        } catch (throwable: Throwable) {
+            InstallResult.Failed(throwable)
+        }
     }
 
     fun openInstallPermissionSettings(): Result<Unit> = runCatching {
@@ -169,14 +208,16 @@ class ApkUpdateManager(
     private fun verifyApk(file: File) {
         val packageManager = context.packageManager
         val archive = packageInfoForArchive(packageManager, file)
-            ?: throw SecurityException("Downloaded file is not an APK")
+            ?: throw ApkCompatibilityException(ApkCompatibilityIssue.INVALID_APK, "Downloaded file is not an APK")
         val installed = packageInfoForInstalled(packageManager, context.packageName)
-        if (archive.packageName != context.packageName) throw SecurityException("APK package name does not match")
+        if (archive.packageName != context.packageName) {
+            throw ApkCompatibilityException(ApkCompatibilityIssue.INVALID_APK, "APK package name does not match")
+        }
         if (archive.longVersionCodeCompat() <= installed.longVersionCodeCompat()) {
-            throw SecurityException("APK version is not newer than installed version")
+            throw ApkCompatibilityException(ApkCompatibilityIssue.NOT_NEWER, "APK version is not newer than installed version")
         }
         if (signerDigests(archive) != signerDigests(installed) || signerDigests(archive).isEmpty()) {
-            throw SecurityException("APK signing certificate does not match")
+            throw ApkCompatibilityException(ApkCompatibilityIssue.SIGNATURE_MISMATCH, "APK signing certificate does not match")
         }
     }
 

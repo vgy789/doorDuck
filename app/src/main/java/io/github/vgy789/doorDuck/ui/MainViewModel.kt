@@ -16,12 +16,17 @@ import io.github.vgy789.doorDuck.model.QrReadiness
 import io.github.vgy789.doorDuck.model.SyncError
 import io.github.vgy789.doorDuck.domain.SyncPolicy
 import io.github.vgy789.doorDuck.update.InstallResult
+import io.github.vgy789.doorDuck.update.ApkDownloadResult
+import io.github.vgy789.doorDuck.update.AppRelease
 import io.github.vgy789.doorDuck.update.UpdateCheckResult
 import io.github.vgy789.doorDuck.update.UpdateMessage
 import io.github.vgy789.doorDuck.update.UpdateStatus
 import io.github.vgy789.doorDuck.update.UpdateUiState
+import io.github.vgy789.doorDuck.update.shouldShowUpdateDialog
+import io.github.vgy789.doorDuck.update.selectReleaseForInstallation
+import io.github.vgy789.doorDuck.update.toUpdateMessage
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -32,6 +37,8 @@ import kotlinx.coroutines.launch
 import java.io.File
 import java.text.DateFormat
 import java.util.Date
+
+private const val UPDATE_PROMPT_DELAY_MS = 15_000L
 
 enum class ScreenMode {
     WIZARD,
@@ -85,6 +92,8 @@ class MainViewModel(
     private var dueRefreshQueued = false
     private var validationMigrationDone = false
     private var downloadJob: Job? = null
+    private var updatePromptDelayElapsed = false
+    private var updatePromptDismissed = false
 
     init {
         viewModelScope.launch {
@@ -191,13 +200,18 @@ class MainViewModel(
                 checkForUpdates(manual = false)
             }
         }
+        viewModelScope.launch {
+            delay(UPDATE_PROMPT_DELAY_MS)
+            updatePromptDelayElapsed = true
+            showUpdateDialogIfAllowed()
+        }
     }
 
     fun setAutomaticUpdateChecksEnabled(enabled: Boolean) {
         _uiState.update { it.copy(update = it.update.copy(automaticChecksEnabled = enabled, message = null)) }
         viewModelScope.launch {
             appContainer.updateRepository.setAutomaticChecksEnabled(enabled)
-            if (enabled && appContainer.updateRepository.shouldRunAutomaticCheck()) {
+            if (enabled) {
                 checkForUpdates(manual = false)
             }
         }
@@ -213,11 +227,34 @@ class MainViewModel(
         ) return
         _uiState.update { it.copy(update = it.update.copy(status = UpdateStatus.CHECKING, message = null)) }
         when (val result = appContainer.updateRepository.check()) {
-            is UpdateCheckResult.Available -> _uiState.update {
-                it.copy(update = it.update.copy(status = UpdateStatus.AVAILABLE, release = result.release, message = null))
+            is UpdateCheckResult.Available -> {
+                val readyToInstall = isReadyToInstall(result.release)
+                _uiState.update {
+                it.copy(
+                    update = it.update.copy(
+                        status = if (readyToInstall) UpdateStatus.READY_TO_INSTALL else UpdateStatus.AVAILABLE,
+                        release = result.release,
+                        message = null,
+                        isDialogVisible = shouldShowUpdateDialog(
+                            hasRelease = true,
+                            status = UpdateStatus.AVAILABLE,
+                            delayElapsed = updatePromptDelayElapsed,
+                            promptDismissed = updatePromptDismissed,
+                            manual = manual,
+                        ),
+                    ),
+                )
+                }
             }
             UpdateCheckResult.UpToDate -> _uiState.update {
-                it.copy(update = it.update.copy(status = UpdateStatus.UP_TO_DATE, release = null, message = null))
+                it.copy(
+                    update = it.update.copy(
+                        status = UpdateStatus.UP_TO_DATE,
+                        release = null,
+                        message = null,
+                        isDialogVisible = false,
+                    ),
+                )
             }
             is UpdateCheckResult.Failed -> _uiState.update {
                 val cachedRelease = it.update.release
@@ -225,9 +262,34 @@ class MainViewModel(
                     update = it.update.copy(
                         status = if (!manual && cachedRelease != null) UpdateStatus.AVAILABLE else if (manual) UpdateStatus.FAILED else UpdateStatus.IDLE,
                         message = if (manual) UpdateMessage.CHECK_FAILED else null,
+                        isDialogVisible = manual,
                     ),
                 )
             }
+        }
+    }
+
+    fun openUpdateDialog() {
+        _uiState.update { it.copy(update = it.update.copy(isDialogVisible = true)) }
+    }
+
+    fun dismissUpdateDialog() {
+        updatePromptDismissed = true
+        _uiState.update { it.copy(update = it.update.copy(isDialogVisible = false)) }
+    }
+
+    fun retryUpdateAction() {
+        when (_uiState.value.update.message) {
+            UpdateMessage.CHECK_FAILED -> checkForUpdates()
+            UpdateMessage.DOWNLOAD_FAILED,
+            UpdateMessage.DOWNLOAD_INTEGRITY_FAILED,
+            -> downloadUpdate()
+            UpdateMessage.INSTALL_FAILED -> requestUpdateInstallation()
+            UpdateMessage.INSTALL_PERMISSION_REQUIRED,
+            UpdateMessage.APK_SIGNATURE_MISMATCH,
+            UpdateMessage.APK_INCOMPATIBLE,
+            null,
+            -> Unit
         }
     }
 
@@ -235,25 +297,112 @@ class MainViewModel(
         val release = _uiState.value.update.release ?: return
         if (downloadJob?.isActive == true) return
         downloadJob = viewModelScope.launch {
-            appContainer.updateSettingsStore.setReadyReleaseTag(null)
+            downloadAndHandle(release = release, installAfterDownload = false)
+        }
+    }
+
+    fun requestUpdateInstallation() {
+        val currentUpdate = _uiState.value.update
+        val fallbackRelease = currentUpdate.release ?: return
+        if (currentUpdate.message == UpdateMessage.APK_SIGNATURE_MISMATCH ||
+            currentUpdate.message == UpdateMessage.APK_INCOMPATIBLE
+        ) {
+            openUpdateDialog()
+            return
+        }
+        if (downloadJob?.isActive == true) return
+        downloadJob = viewModelScope.launch {
             _uiState.update {
-                it.copy(update = it.update.copy(status = UpdateStatus.DOWNLOADING, downloadProgress = 0, message = null))
+                it.copy(update = it.update.copy(status = UpdateStatus.CHECKING, message = null))
             }
-            appContainer.apkUpdateManager.downloadAndVerify(release) { progress ->
-                _uiState.update { current ->
-                    current.copy(update = current.update.copy(downloadProgress = progress))
+            val checkResult = appContainer.updateRepository.check()
+            val release = selectReleaseForInstallation(checkResult, fallbackRelease)
+            if (release == null) {
+                appContainer.updateSettingsStore.setReadyReleaseTag(null)
+                appContainer.apkUpdateManager.clear()
+                _uiState.update {
+                    it.copy(
+                        update = it.update.copy(
+                            status = UpdateStatus.UP_TO_DATE,
+                            release = null,
+                            message = null,
+                            isDialogVisible = false,
+                        ),
+                    )
                 }
-            }.onSuccess {
+                return@launch
+            }
+
+            if (release.tag != fallbackRelease.tag) {
+                appContainer.updateSettingsStore.setReadyReleaseTag(null)
+                appContainer.apkUpdateManager.clear()
+            }
+            _uiState.update {
+                it.copy(update = it.update.copy(release = release, message = null))
+            }
+            if (isReadyToInstall(release)) {
+                _uiState.update {
+                    it.copy(update = it.update.copy(status = UpdateStatus.READY_TO_INSTALL))
+                }
+                installReadyUpdate()
+            } else {
+                downloadAndHandle(release = release, installAfterDownload = true)
+            }
+        }
+    }
+
+    private suspend fun downloadAndHandle(
+        release: AppRelease,
+        installAfterDownload: Boolean,
+    ) {
+        appContainer.updateSettingsStore.setReadyReleaseTag(null)
+        _uiState.update {
+            it.copy(
+                update = it.update.copy(
+                    status = UpdateStatus.DOWNLOADING,
+                    downloadProgress = 0,
+                    message = null,
+                    isDialogVisible = true,
+                ),
+            )
+        }
+        when (val result = appContainer.apkUpdateManager.downloadAndVerify(release) { progress ->
+            _uiState.update { current ->
+                current.copy(update = current.update.copy(downloadProgress = progress))
+            }
+        }) {
+            is ApkDownloadResult.Ready -> {
                 appContainer.updateSettingsStore.setReadyReleaseTag(release.tag)
                 _uiState.update {
-                    it.copy(update = it.update.copy(status = UpdateStatus.READY_TO_INSTALL, downloadProgress = 100, message = null))
+                    it.copy(
+                        update = it.update.copy(
+                            status = UpdateStatus.READY_TO_INSTALL,
+                            downloadProgress = 100,
+                            message = null,
+                        ),
+                    )
                 }
-            }.onFailure {
-                if (it is CancellationException) return@onFailure
-                _uiState.update {
-                    it.copy(update = it.update.copy(status = UpdateStatus.FAILED, message = UpdateMessage.DOWNLOAD_FAILED))
-                }
+                if (installAfterDownload) installReadyUpdate()
             }
+            is ApkDownloadResult.DownloadFailed -> showUpdateFailure(UpdateMessage.DOWNLOAD_FAILED)
+            is ApkDownloadResult.IntegrityFailed -> showUpdateFailure(UpdateMessage.DOWNLOAD_INTEGRITY_FAILED)
+            is ApkDownloadResult.Incompatible -> showUpdateFailure(result.issue.toUpdateMessage())
+        }
+    }
+
+    private fun showUpdateFailure(message: UpdateMessage) {
+        _uiState.update {
+            it.copy(
+                update = it.update.copy(
+                    status = UpdateStatus.FAILED,
+                    downloadProgress = if (message == UpdateMessage.APK_SIGNATURE_MISMATCH ||
+                        message == UpdateMessage.APK_INCOMPATIBLE
+                    ) 100 else it.update.downloadProgress,
+                    message = message,
+                    waitingForInstallPermission = false,
+                    isDialogVisible = true,
+                ),
+            )
         }
     }
 
@@ -267,25 +416,33 @@ class MainViewModel(
         }
     }
 
-    fun installUpdate() {
-        when (appContainer.apkUpdateManager.install()) {
+    private fun installReadyUpdate() {
+        when (val result = appContainer.apkUpdateManager.install()) {
             InstallResult.InstallerOpened -> _uiState.update {
-                it.copy(update = it.update.copy(waitingForInstallPermission = false, message = null))
+                it.copy(
+                    update = it.update.copy(
+                        waitingForInstallPermission = false,
+                        message = null,
+                        isDialogVisible = false,
+                    ),
+                )
             }
             InstallResult.PermissionRequired -> _uiState.update {
                 it.copy(
                     update = it.update.copy(
                         waitingForInstallPermission = true,
                         message = UpdateMessage.INSTALL_PERMISSION_REQUIRED,
+                        isDialogVisible = true,
                     ),
                 )
             }
-            is InstallResult.Failed -> {
+            is InstallResult.Incompatible -> {
                 appContainer.apkUpdateManager.clear()
                 viewModelScope.launch { appContainer.updateSettingsStore.setReadyReleaseTag(null) }
-                _uiState.update { current ->
-                    current.copy(update = current.update.copy(message = UpdateMessage.INSTALL_FAILED))
-                }
+                showUpdateFailure(result.issue.toUpdateMessage())
+            }
+            is InstallResult.Failed -> {
+                showUpdateFailure(UpdateMessage.INSTALL_FAILED)
             }
         }
     }
@@ -293,7 +450,45 @@ class MainViewModel(
     fun openUpdateInstallPermissionSettings() {
         appContainer.apkUpdateManager.openInstallPermissionSettings().onFailure {
             _uiState.update { current ->
-                current.copy(update = current.update.copy(message = UpdateMessage.INSTALL_FAILED))
+                current.copy(
+                    update = current.update.copy(
+                        waitingForInstallPermission = false,
+                        message = UpdateMessage.INSTALL_FAILED,
+                    ),
+                )
+            }
+        }
+    }
+
+    fun onAppResumed() {
+        val update = _uiState.value.update
+        if (!update.waitingForInstallPermission) return
+        if (appContainer.apkUpdateManager.canInstallPackages()) {
+            installReadyUpdate()
+        } else {
+            _uiState.update { it.copy(update = it.update.copy(isDialogVisible = true)) }
+        }
+    }
+
+    private suspend fun isReadyToInstall(release: AppRelease): Boolean {
+        val settings = appContainer.updateRepository.settings()
+        return settings.readyReleaseTag == release.tag && appContainer.apkUpdateManager.hasReadyApk()
+    }
+
+    private fun showUpdateDialogIfAllowed() {
+        if (updatePromptDismissed) return
+        _uiState.update { current ->
+            val update = current.update
+            if (!shouldShowUpdateDialog(
+                    hasRelease = update.release != null,
+                    status = update.status,
+                    delayElapsed = updatePromptDelayElapsed,
+                    promptDismissed = updatePromptDismissed,
+                )
+            ) {
+                current
+            } else {
+                current.copy(update = update.copy(isDialogVisible = true))
             }
         }
     }

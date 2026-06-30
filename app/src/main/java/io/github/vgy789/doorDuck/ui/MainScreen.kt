@@ -44,13 +44,16 @@ import androidx.compose.material.icons.filled.ArrowOutward
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.InstallMobile
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.PersonOutline
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.SystemUpdateAlt
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -69,6 +72,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -101,6 +105,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import io.github.vgy789.doorDuck.R
 import io.github.vgy789.doorDuck.BuildConfig
 import io.github.vgy789.doorDuck.config.AndroidEndpointSecrets
@@ -113,6 +120,8 @@ import io.github.vgy789.doorDuck.widget.QrGlanceWidgetReceiver
 import io.github.vgy789.doorDuck.update.UpdateMessage
 import io.github.vgy789.doorDuck.update.UpdateStatus
 import io.github.vgy789.doorDuck.update.UpdateUiState
+import io.github.vgy789.doorDuck.update.changelogItems
+import io.github.vgy789.doorDuck.update.canRetryUpdate
 import java.text.DateFormat
 import java.util.Date
 import kotlinx.coroutines.delay
@@ -124,6 +133,7 @@ private val DashboardActionButtonShape = RoundedCornerShape(14.dp)
 fun MainScreen(viewModel: MainViewModel) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val scrollState = rememberScrollState()
+    val lifecycleOwner = LocalLifecycleOwner.current
     val refreshCooldownNowMs by produceState(
         initialValue = System.currentTimeMillis(),
         key1 = state.manualRefreshBlockedUntilMs,
@@ -141,6 +151,13 @@ fun MainScreen(viewModel: MainViewModel) {
     }
     LaunchedEffect(state.mode) {
         scrollState.animateScrollTo(0)
+    }
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) viewModel.onAppResumed()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
     Scaffold(containerColor = Color.Transparent) { padding ->
@@ -173,6 +190,17 @@ fun MainScreen(viewModel: MainViewModel) {
                 NoticeCard(message = message)
             }
         }
+    }
+    if (state.update.isDialogVisible) {
+        UpdateDialog(
+            state = state.update,
+            onDismiss = viewModel::dismissUpdateDialog,
+            onDownload = viewModel::downloadUpdate,
+            onCancelDownload = viewModel::cancelUpdateDownload,
+            onInstall = viewModel::requestUpdateInstallation,
+            onOpenInstallPermission = viewModel::openUpdateInstallPermissionSettings,
+            onRetry = viewModel::retryUpdateAction,
+        )
     }
 }
 
@@ -925,7 +953,10 @@ private fun SettingsDashboard(
     refreshCooldownNowMs: Long,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        StatusCard(state = state)
+        StatusCard(
+            state = state,
+            onOpenUpdate = viewModel::openUpdateDialog,
+        )
         if (state.lastError == SyncError.UNAUTHORIZED) {
             TokenRecoveryCard(
                 onResetData = viewModel::clearAllData,
@@ -943,10 +974,7 @@ private fun SettingsDashboard(
             state = state.update,
             onAutomaticChecksChange = viewModel::setAutomaticUpdateChecksEnabled,
             onCheck = viewModel::checkForUpdates,
-            onDownload = viewModel::downloadUpdate,
-            onCancelDownload = viewModel::cancelUpdateDownload,
-            onInstall = viewModel::installUpdate,
-            onOpenInstallPermission = viewModel::openUpdateInstallPermissionSettings,
+            onInstall = viewModel::requestUpdateInstallation,
         )
         ClearDataCard(onClearData = viewModel::clearAllData)
         CreditsCard()
@@ -959,13 +987,11 @@ private fun UpdateCenterCard(
     state: UpdateUiState,
     onAutomaticChecksChange: (Boolean) -> Unit,
     onCheck: () -> Unit,
-    onDownload: () -> Unit,
-    onCancelDownload: () -> Unit,
     onInstall: () -> Unit,
-    onOpenInstallPermission: () -> Unit,
 ) {
-    var changelogExpanded by remember(state.release?.tag) { mutableStateOf(false) }
     val isBusy = state.status == UpdateStatus.CHECKING || state.status == UpdateStatus.DOWNLOADING
+    val dark = MaterialTheme.colorScheme.background.red < 0.2f
+    val availableColor = if (dark) Color(0xFFF2C64D) else Color(0xFFB77900)
 
     DashboardCard {
         Column(
@@ -977,11 +1003,35 @@ private fun UpdateCenterCard(
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
             )
-            Text(
-                text = stringResource(R.string.update_current_version, BuildConfig.VERSION_NAME),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.Top,
+            ) {
+                Text(
+                    text = stringResource(R.string.update_current_version, BuildConfig.VERSION_NAME),
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                state.release?.let { release ->
+                    Text(
+                        text = stringResource(R.string.update_available_inline, release.tag.removePrefix("v")),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = availableColor,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.End,
+                    )
+                } ?: if (state.status == UpdateStatus.UP_TO_DATE) {
+                    Text(
+                        text = stringResource(R.string.update_current),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Medium,
+                        textAlign = TextAlign.End,
+                    )
+                } else Unit
+            }
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -1006,128 +1056,239 @@ private fun UpdateCenterCard(
                 )
             }
 
-            when (state.status) {
-                UpdateStatus.CHECKING -> {
-                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-                    Text(stringResource(R.string.update_checking), style = MaterialTheme.typography.bodySmall)
-                }
-                UpdateStatus.UP_TO_DATE -> Text(
-                    stringResource(R.string.update_up_to_date),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.primary,
-                )
-                UpdateStatus.DOWNLOADING -> {
-                    LinearProgressIndicator(
-                        progress = { state.downloadProgress / 100f },
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    Text(
-                        stringResource(R.string.update_downloading, state.downloadProgress),
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                    TextButton(onClick = onCancelDownload, modifier = Modifier.align(Alignment.End)) {
-                        Text(stringResource(R.string.update_cancel_download))
-                    }
-                }
-                else -> Unit
+            if (state.status == UpdateStatus.CHECKING) {
+                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                Text(stringResource(R.string.update_checking), style = MaterialTheme.typography.bodySmall)
             }
 
-            state.message?.let { message ->
+            if (state.status == UpdateStatus.DOWNLOADING) {
+                LinearProgressIndicator(
+                    progress = { state.downloadProgress / 100f },
+                    modifier = Modifier.fillMaxWidth(),
+                )
                 Text(
-                    text = stringResource(
-                        when (message) {
-                            UpdateMessage.CHECK_FAILED -> R.string.update_check_failed
-                            UpdateMessage.DOWNLOAD_FAILED -> R.string.update_download_failed
-                            UpdateMessage.INSTALL_FAILED -> R.string.update_install_failed
-                            UpdateMessage.INSTALL_PERMISSION_REQUIRED -> R.string.update_install_permission_required
-                        },
-                    ),
+                    stringResource(R.string.update_downloading, state.downloadProgress),
                     style = MaterialTheme.typography.bodySmall,
-                    color = if (message == UpdateMessage.INSTALL_PERMISSION_REQUIRED) {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    } else {
-                        MaterialTheme.colorScheme.error
-                    },
                 )
             }
 
-            state.release?.let { release ->
-                if (state.status != UpdateStatus.DOWNLOADING) {
-                    Text(
-                        text = stringResource(R.string.update_available, release.tag.removePrefix("v")),
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                    if (release.publishedAt.isNotBlank()) {
-                        Text(
-                            text = stringResource(R.string.update_published_at, release.publishedAt.take(10)),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    if (release.changelog.isNotBlank()) {
-                        Text(
-                            text = release.changelog,
-                            maxLines = if (changelogExpanded) Int.MAX_VALUE else 4,
-                            overflow = TextOverflow.Ellipsis,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        TextButton(
-                            onClick = { changelogExpanded = !changelogExpanded },
-                            modifier = Modifier.align(Alignment.End),
-                        ) {
+            if (state.release != null && !isBusy) {
+                Button(
+                    onClick = onInstall,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+                    shape = DashboardActionButtonShape,
+                ) {
+                    Text(stringResource(R.string.update_install), textAlign = TextAlign.Center)
+                }
+            }
+
+            if (state.release == null && !state.automaticChecksEnabled && !isBusy) {
+                OutlinedButton(
+                    onClick = onCheck,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+                    shape = DashboardActionButtonShape,
+                ) {
+                    Text(stringResource(R.string.update_check_now), textAlign = TextAlign.Center)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun UpdateDialog(
+    state: UpdateUiState,
+    onDismiss: () -> Unit,
+    onDownload: () -> Unit,
+    onCancelDownload: () -> Unit,
+    onInstall: () -> Unit,
+    onOpenInstallPermission: () -> Unit,
+    onRetry: () -> Unit,
+) {
+    val release = state.release
+    val changelogItems = remember(release?.changelog) { release?.changelogItems().orEmpty() }
+    val errorText = state.message?.let { message ->
+        stringResource(
+            when (message) {
+                UpdateMessage.CHECK_FAILED -> R.string.update_check_failed
+                UpdateMessage.DOWNLOAD_FAILED -> R.string.update_download_failed
+                UpdateMessage.DOWNLOAD_INTEGRITY_FAILED -> R.string.update_integrity_failed
+                UpdateMessage.INSTALL_FAILED -> R.string.update_install_failed
+                UpdateMessage.INSTALL_PERMISSION_REQUIRED -> R.string.update_install_permission_required
+                UpdateMessage.APK_SIGNATURE_MISMATCH -> R.string.update_signature_mismatch
+                UpdateMessage.APK_INCOMPATIBLE -> R.string.update_apk_incompatible
+            },
+        )
+    }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            dismissOnBackPress = true,
+            dismissOnClickOutside = true,
+            usePlatformDefaultWidth = false,
+        ),
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.62f))
+                .clickable(onClick = onDismiss)
+                .padding(20.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .widthIn(max = 520.dp)
+                    .heightIn(max = 720.dp)
+                    .clickable { },
+                shape = RoundedCornerShape(28.dp),
+                color = MaterialTheme.colorScheme.surface,
+                shadowElevation = 18.dp,
+            ) {
+                Column(
+                    modifier = Modifier.padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                stringResource(
-                                    if (changelogExpanded) R.string.update_changelog_less else R.string.update_changelog_more,
-                                ),
+                                text = stringResource(R.string.update_dialog_title),
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold,
+                            )
+                            release?.let {
+                                Text(
+                                    text = stringResource(R.string.update_available, it.tag.removePrefix("v")),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
+                            }
+                        }
+                        IconButton(onClick = onDismiss) {
+                            Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.update_close))
+                        }
+                    }
+
+                    Column(
+                        modifier = Modifier
+                            .weight(1f, fill = false)
+                            .verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        if (changelogItems.isNotEmpty()) {
+                            Text(
+                                text = stringResource(R.string.update_changes_title),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                            changelogItems.forEach { item ->
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                    verticalAlignment = Alignment.Top,
+                                ) {
+                                    Text("•", color = MaterialTheme.colorScheme.primary)
+                                    Text(
+                                        text = item,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
+                        }
+
+                        if (state.status == UpdateStatus.DOWNLOADING) {
+                            LinearProgressIndicator(
+                                progress = { state.downloadProgress / 100f },
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                            Text(
+                                text = stringResource(R.string.update_downloading, state.downloadProgress),
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                        }
+
+                        if (state.status == UpdateStatus.CHECKING) {
+                            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                            Text(
+                                text = stringResource(R.string.update_checking),
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                        }
+
+                        errorText?.let {
+                            Text(
+                                text = it,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = if (state.message == UpdateMessage.INSTALL_PERMISSION_REQUIRED) {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                } else {
+                                    MaterialTheme.colorScheme.error
+                                },
                             )
                         }
                     }
-                }
-            }
 
-            when {
-                state.status == UpdateStatus.READY_TO_INSTALL && state.waitingForInstallPermission -> {
-                    Button(
-                        onClick = onOpenInstallPermission,
-                        modifier = Modifier.fillMaxWidth().height(DashboardActionButtonHeight),
-                        shape = DashboardActionButtonShape,
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
-                        Text(stringResource(R.string.update_allow_installation))
-                    }
-                    OutlinedButton(
-                        onClick = onInstall,
-                        modifier = Modifier.fillMaxWidth().height(DashboardActionButtonHeight),
-                        shape = DashboardActionButtonShape,
-                    ) {
-                        Text(stringResource(R.string.update_continue_installation))
-                    }
-                }
-                state.status == UpdateStatus.READY_TO_INSTALL -> Button(
-                    onClick = onInstall,
-                    modifier = Modifier.fillMaxWidth().height(DashboardActionButtonHeight),
-                    shape = DashboardActionButtonShape,
-                ) {
-                    Text(stringResource(R.string.update_install))
-                }
-                state.release != null && state.status != UpdateStatus.CHECKING && state.status != UpdateStatus.DOWNLOADING -> Button(
-                    onClick = onDownload,
-                    modifier = Modifier.fillMaxWidth().height(DashboardActionButtonHeight),
-                    shape = DashboardActionButtonShape,
-                ) {
-                    Text(stringResource(R.string.update_download))
-                }
-            }
+                        when {
+                            state.waitingForInstallPermission -> Button(
+                                onClick = onOpenInstallPermission,
+                                modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+                                shape = DashboardActionButtonShape,
+                            ) {
+                                Text(stringResource(R.string.update_allow_installation), textAlign = TextAlign.Center)
+                            }
+                            state.status == UpdateStatus.READY_TO_INSTALL -> Button(
+                                onClick = onInstall,
+                                modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+                                shape = DashboardActionButtonShape,
+                            ) {
+                                Text(stringResource(R.string.update_install), textAlign = TextAlign.Center)
+                            }
+                            state.status == UpdateStatus.DOWNLOADING -> Unit
+                            state.message?.canRetryUpdate() == true -> Button(
+                                onClick = onRetry,
+                                modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+                                shape = DashboardActionButtonShape,
+                            ) {
+                                Text(stringResource(R.string.update_retry), textAlign = TextAlign.Center)
+                            }
+                            release != null && state.message == null && state.status != UpdateStatus.CHECKING -> Button(
+                                onClick = onDownload,
+                                modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+                                shape = DashboardActionButtonShape,
+                            ) {
+                                Text(stringResource(R.string.update_download), textAlign = TextAlign.Center)
+                            }
+                        }
 
-            if (!isBusy && state.status != UpdateStatus.READY_TO_INSTALL) {
-                OutlinedButton(
-                    onClick = onCheck,
-                    modifier = Modifier.fillMaxWidth().height(DashboardActionButtonHeight),
-                    shape = DashboardActionButtonShape,
-                ) {
-                    Text(stringResource(R.string.update_check_now))
+                        OutlinedButton(
+                            onClick = if (state.status == UpdateStatus.DOWNLOADING) onCancelDownload else onDismiss,
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+                            shape = DashboardActionButtonShape,
+                        ) {
+                            Text(
+                                text = stringResource(
+                                    when {
+                                        state.status == UpdateStatus.DOWNLOADING -> R.string.update_cancel_download
+                                        state.message == UpdateMessage.CHECK_FAILED && release == null -> R.string.update_close
+                                        state.message == UpdateMessage.APK_SIGNATURE_MISMATCH -> R.string.update_close
+                                        state.message == UpdateMessage.APK_INCOMPATIBLE -> R.string.update_close
+                                        else -> R.string.update_later
+                                    },
+                                ),
+                                textAlign = TextAlign.Center,
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -1200,10 +1361,23 @@ private fun ClearDataCard(onClearData: () -> Unit) {
 }
 
 @Composable
-private fun StatusCard(state: MainUiState) {
+private fun StatusCard(
+    state: MainUiState,
+    onOpenUpdate: () -> Unit,
+) {
     var detailsExpanded by remember { mutableStateOf(false) }
     val readiness = state.qrReadiness()
+    val hasUpdate = state.update.release != null
     val headline = when {
+        hasUpdate && state.update.status == UpdateStatus.DOWNLOADING -> stringResource(
+            R.string.update_status_downloading,
+            state.update.downloadProgress,
+        )
+        hasUpdate && state.update.status == UpdateStatus.READY_TO_INSTALL -> stringResource(R.string.update_status_ready)
+        hasUpdate -> stringResource(
+            R.string.update_status_available,
+            state.update.release.tag.removePrefix("v"),
+        )
         state.syncInProgress -> stringResource(R.string.status_qr_refreshing)
         readiness == QrReadiness.READY -> stringResource(R.string.status_qr_fresh)
         readiness == QrReadiness.CHECK_REQUIRED -> stringResource(R.string.status_qr_check_required)
@@ -1211,7 +1385,16 @@ private fun StatusCard(state: MainUiState) {
         else -> stringResource(R.string.status_qr_missing)
     }
     val dark = MaterialTheme.colorScheme.background.red < 0.2f
-    val palette = when (readiness) {
+    val palette = if (hasUpdate) {
+        StatusPalette(
+            container = if (dark) Color(0xFF332612) else Color(0xFFFFF2D3),
+            border = if (dark) Color(0xFF6A5123) else Color(0xFFEACD8A),
+            badge = if (dark) Color(0xFFF2C64D) else Color(0xFFF5D68A),
+            headline = if (dark) Color(0xFFFFE7B5) else Color(0xFF6F4700),
+            symbolContainer = Color.Transparent,
+            symbol = if (dark) Color(0xFF51360A) else Color(0xFF7A4A00),
+        )
+    } else when (readiness) {
         QrReadiness.READY -> StatusPalette(
             container = if (dark) Color(0xFF1F2A1D) else Color(0xFFF3FBEF),
             border = if (dark) Color(0xFF355B34) else Color(0xFFB8DBA9),
@@ -1240,7 +1423,9 @@ private fun StatusCard(state: MainUiState) {
     val textColor = if (dark) Color(0xFFF3EBDD) else Color(0xFF4E4335)
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(if (hasUpdate) Modifier.clickable(onClick = onOpenUpdate) else Modifier),
         shape = RoundedCornerShape(28.dp),
         colors = CardDefaults.cardColors(containerColor = palette.container),
         border = BorderStroke(1.dp, palette.border),
@@ -1263,9 +1448,12 @@ private fun StatusCard(state: MainUiState) {
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
-                            imageVector = when (readiness) {
-                                QrReadiness.READY -> Icons.Filled.CheckCircle
-                                QrReadiness.CHECK_REQUIRED -> Icons.Filled.Refresh
+                            imageVector = when {
+                                hasUpdate && state.update.status == UpdateStatus.DOWNLOADING -> Icons.Filled.Download
+                                hasUpdate && state.update.status == UpdateStatus.READY_TO_INSTALL -> Icons.Filled.InstallMobile
+                                hasUpdate -> Icons.Filled.SystemUpdateAlt
+                                readiness == QrReadiness.READY -> Icons.Filled.CheckCircle
+                                readiness == QrReadiness.CHECK_REQUIRED -> Icons.Filled.Refresh
                                 else -> Icons.Filled.Close
                             },
                             contentDescription = null,
