@@ -12,6 +12,7 @@ object Defaults {
     const val defaultEndpoint = baseEndpoint
     const val revealDurationMillis = 60_000L
     const val manualRefreshCooldownMillis = 5_000L
+    const val syncInProgressTimeoutMillis = 5L * 60L * 1000L
     const val botUsername = "qr-code-generator.bot"
 }
 

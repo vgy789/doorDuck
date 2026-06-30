@@ -85,4 +85,14 @@ object SyncPolicy {
     ): Long {
         return nowMs + Defaults.manualRefreshCooldownMillis
     }
+
+    fun isSyncInProgress(
+        storedInProgress: Boolean,
+        startedAtMs: Long?,
+        nowMs: Long = currentTimeMillis(),
+    ): Boolean {
+        if (!storedInProgress || startedAtMs == null) return false
+        val elapsedMs = nowMs - startedAtMs
+        return elapsedMs in 0 until Defaults.syncInProgressTimeoutMillis
+    }
 }

@@ -117,7 +117,6 @@ class MainViewModel(
                         )
                     ) {
                         dueRefreshQueued = true
-                        appContainer.settingsStore.setSyncInProgress(true)
                         appContainer.workScheduler.enqueueAutomaticRefresh(delayMs = 0L, attempt = 0)
                         appContainer.widgetUpdateCoordinator.forceWidgetUpdateNow()
                     }
@@ -518,7 +517,6 @@ class MainViewModel(
             appContainer.settingsStore.setManualRefreshBlockedUntil(
                 SyncPolicy.nextManualRefreshAllowedAt(nowMs),
             )
-            appContainer.settingsStore.setSyncInProgress(true)
             appContainer.workScheduler.enqueueManualRefresh()
             appContainer.widgetUpdateCoordinator.forceWidgetUpdateNow()
             setInfo(R.string.info_refresh_queued)
@@ -661,7 +659,6 @@ class MainViewModel(
             appContainer.settingsStore.setManualRefreshBlockedUntil(
                 SyncPolicy.nextManualRefreshAllowedAt(),
             )
-            appContainer.settingsStore.setSyncInProgress(true)
             appContainer.workScheduler.enqueueManualRefresh(showToastOnResult = true)
             appContainer.widgetUpdateCoordinator.forceWidgetUpdateNow()
             _uiState.update {

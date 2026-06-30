@@ -82,8 +82,6 @@ class QrSyncService(
         val settings = settingsStore.getSettings()
         val credentials = credentialsStore.load() ?: return notConfigured()
 
-        settingsStore.setSyncInProgress(true)
-
         return runCatching {
             val api = clientFactory.create(settings.endpoint, credentials)
             val roomId = createDm(api)
@@ -146,8 +144,6 @@ class QrSyncService(
             }
             settingsStore.saveSyncError(mapped)
             RefreshResult.Failure(mapped)
-        }.also {
-            settingsStore.clearInProgress()
         }
     }
 

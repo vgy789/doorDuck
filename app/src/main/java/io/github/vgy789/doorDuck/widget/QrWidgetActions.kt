@@ -35,7 +35,6 @@ class RefreshQrAction : ActionCallback {
         container.settingsStore.setManualRefreshBlockedUntil(
             SyncPolicy.nextManualRefreshAllowedAt(nowMs),
         )
-        container.settingsStore.setSyncInProgress(true)
         container.workScheduler.enqueueManualRefresh(showToastOnResult = false)
         container.widgetUpdateCoordinator.forceWidgetUpdateNow()
     }

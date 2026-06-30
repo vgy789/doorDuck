@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import io.github.vgy789.doorDuck.domain.SyncPolicy
 import io.github.vgy789.doorDuck.model.AppState
 import io.github.vgy789.doorDuck.model.Defaults
 import io.github.vgy789.doorDuck.model.QrCodeSnapshot
@@ -34,6 +35,7 @@ class SettingsStore(private val context: Context) {
         val lastSuccessAtMs = longPreferencesKey("last_success_at_ms")
         val revealUntilMs = longPreferencesKey("reveal_until_ms")
         val syncInProgress = booleanPreferencesKey("sync_in_progress")
+        val syncStartedAtMs = longPreferencesKey("sync_started_at_ms")
         val lastError = stringPreferencesKey("last_error")
         val imageValidationStatus = stringPreferencesKey("image_validation_status")
     }
@@ -73,10 +75,21 @@ class SettingsStore(private val context: Context) {
         }
     }
 
-    suspend fun setSyncInProgress(inProgress: Boolean) {
+    suspend fun tryStartSync(nowMs: Long = System.currentTimeMillis()): Boolean {
+        var started = false
         context.dataStore.edit { mutablePrefs ->
-            mutablePrefs[Keys.syncInProgress] = inProgress
+            val alreadyInProgress = SyncPolicy.isSyncInProgress(
+                storedInProgress = mutablePrefs[Keys.syncInProgress] ?: false,
+                startedAtMs = mutablePrefs[Keys.syncStartedAtMs],
+                nowMs = nowMs,
+            )
+            if (!alreadyInProgress) {
+                mutablePrefs[Keys.syncInProgress] = true
+                mutablePrefs[Keys.syncStartedAtMs] = nowMs
+                started = true
+            }
         }
+        return started
     }
 
     suspend fun setRevealUntil(revealUntilMs: Long?) {
@@ -132,20 +145,23 @@ class SettingsStore(private val context: Context) {
             mutablePrefs[Keys.lastSuccessAtMs] = receivedAtMs
             mutablePrefs[Keys.imageValidationStatus] = imageValidationStatus.name
             mutablePrefs.remove(Keys.lastError)
-            mutablePrefs[Keys.syncInProgress] = false
+            mutablePrefs.remove(Keys.syncInProgress)
+            mutablePrefs.remove(Keys.syncStartedAtMs)
         }
     }
 
     suspend fun saveSyncError(error: SyncError) {
         context.dataStore.edit { mutablePrefs ->
             mutablePrefs[Keys.lastError] = error.name
-            mutablePrefs[Keys.syncInProgress] = false
+            mutablePrefs.remove(Keys.syncInProgress)
+            mutablePrefs.remove(Keys.syncStartedAtMs)
         }
     }
 
     suspend fun clearInProgress() {
         context.dataStore.edit { mutablePrefs ->
-            mutablePrefs[Keys.syncInProgress] = false
+            mutablePrefs.remove(Keys.syncInProgress)
+            mutablePrefs.remove(Keys.syncStartedAtMs)
         }
     }
 
@@ -185,7 +201,10 @@ class SettingsStore(private val context: Context) {
             manualRefreshBlockedUntilMs = this[Keys.manualRefreshBlockedUntilMs],
             lastSuccessAtMs = this[Keys.lastSuccessAtMs],
             revealUntilMs = this[Keys.revealUntilMs],
-            isSyncInProgress = this[Keys.syncInProgress] ?: false,
+            isSyncInProgress = SyncPolicy.isSyncInProgress(
+                storedInProgress = this[Keys.syncInProgress] ?: false,
+                startedAtMs = this[Keys.syncStartedAtMs],
+            ),
             lastError = this[Keys.lastError]?.let {
                 runCatching { SyncError.valueOf(it) }.getOrNull()
             },

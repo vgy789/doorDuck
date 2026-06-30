@@ -41,7 +41,15 @@ class QrRefreshWorker(
             }
         }
 
-        val result = container.syncService.refreshQrCode()
+        if (!container.settingsStore.tryStartSync()) {
+            container.widgetUpdateCoordinator.forceWidgetUpdateNow()
+            return Result.success()
+        }
+        val result = try {
+            container.syncService.refreshQrCode()
+        } finally {
+            container.settingsStore.clearInProgress()
+        }
         container.widgetUpdateCoordinator.forceWidgetUpdateNow()
         if (inputData.getBoolean(KEY_SHOW_RESULT_TOAST, false) && runAttemptCount == 0) {
             showResultToast(result)

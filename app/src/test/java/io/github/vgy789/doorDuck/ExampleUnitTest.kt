@@ -146,6 +146,33 @@ class ExampleUnitTest {
     }
 
     @Test
+    fun stale_or_legacy_sync_flag_does_not_block_refresh_forever() {
+        val nowMs = 10L * 60L * 1000L
+
+        assertFalse(
+            SyncPolicy.isSyncInProgress(
+                storedInProgress = true,
+                startedAtMs = null,
+                nowMs = nowMs,
+            ),
+        )
+        assertFalse(
+            SyncPolicy.isSyncInProgress(
+                storedInProgress = true,
+                startedAtMs = nowMs - 5L * 60L * 1000L,
+                nowMs = nowMs,
+            ),
+        )
+        assertTrue(
+            SyncPolicy.isSyncInProgress(
+                storedInProgress = true,
+                startedAtMs = nowMs - 1_000L,
+                nowMs = nowMs,
+            ),
+        )
+    }
+
+    @Test
     fun auto_retry_slots_are_relative_to_now() {
         assertEquals(
             10_000L + 1L * 60L * 60L * 1000L,
