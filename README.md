@@ -1,36 +1,20 @@
-[![Typing SVG](https://readme-typing-svg.demolab.com/?font=Fira+Code&size=24&duration=4500&pause=1000&color=1F2328&vCenter=true&random=true&height=25&lines=⤇Проходи+без+затруднений;⤇QR+на+рабочем+столе;⤇Автопродление+пропуска)](https://git.io/typing-svg)
-
-# doorDuck
-
-
 ![Android](https://img.shields.io/badge/Android-24%2B-3DDC84?logo=android&logoColor=white)
 ![iOS](https://img.shields.io/badge/iOS-14%2B-000000?logo=apple&logoColor=white)
-![Kotlin Multiplatform](https://img.shields.io/badge/Kotlin-Multiplatform-7F52FF?logo=kotlin&logoColor=white)
-![Compose Multiplatform](https://img.shields.io/badge/Compose-Multiplatform-4285F4)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](./LICENSE)
 
-`doorDuck` показывает и обновляет QR-пропуск для кампусов Школы 21 в приложении и виджетах Android/iOS.
+<img src="docs/images/screenshots/showcase-transparent.png"
+      alt="showcase"
+      width="560px">
+
+`doorDuck` показывает и обновляет QR-пропуск для кампусов Школы 21 в приложении и виджетах на Android и iOS.
 
 > [!IMPORTANT]
-> `doorDuck` не связан с АНО «Школа 21», Сбером или Rocket.Chat. Пользователь отвечает за соблюдение правил организации, договоров и законодательства.
+> `doorDuck` — независимый проект, не связанный с АНО «Школа 21», Сбером. Пользователь самостоятельно отвечает за соблюдение правил организации, условий договоров и законодательства.
+
 
 ## Скачать
 
 [Latest Release](https://github.com/vgy789/doorDuck/releases/latest) | [Android APK](https://github.com/vgy789/doorDuck/releases/latest/download/doorDuck-latest.apk) | iOS собирается из исходников
-
-<table>
-  <tr>
-    <td align="center">
-      <img src="docs/images/screenshots/authorization.jpg" alt="Authorization screen" width="280" />
-    </td>
-    <td align="center">
-      <img src="docs/images/screenshots/main_page.jpg" alt="Main page screen" width="280" />
-    </td>
-    <td align="center">
-      <img src="docs/images/screenshots/home_screen.jpg" alt="Main page screen" width="280" />
-    </td>
-  </tr>
-</table>
 
 ## Возможности
 
