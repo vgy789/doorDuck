@@ -19,6 +19,7 @@
     <string name="user_id_label">Rocket.Chat ID</string>
     <string name="manual_refresh">Обновить QR сейчас</string>
     <string name="app_qr_title">Текущий пропуск</string>
+    <string name="qr_controls_title">Управление QR</string>
     <string name="app_qr_empty">QR-код ещё не загружен. Нажми «Обновить QR сейчас».</string>
 
     <string name="action_start">Начать</string>

@@ -19,6 +19,7 @@
     <string name="user_id_label">Rocket.Chat user ID</string>
     <string name="manual_refresh">Refresh QR now</string>
     <string name="app_qr_title">Current pass</string>
+    <string name="qr_controls_title">QR controls</string>
     <string name="app_qr_empty">No QR code in local storage yet. Tap \"Refresh QR now\".</string>
 
     <string name="action_start">Start</string>

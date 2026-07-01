@@ -5,6 +5,7 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.ComponentName
 import android.content.Context
+import android.content.res.Configuration
 import android.graphics.BitmapFactory
 import android.os.Build
 import android.widget.Toast
@@ -14,16 +15,19 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -79,6 +83,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -89,6 +94,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -133,6 +139,8 @@ private val DashboardActionButtonShape = RoundedCornerShape(14.dp)
 fun MainScreen(viewModel: MainViewModel) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val scrollState = rememberScrollState()
+    val landscapeScrollState = rememberScrollState()
+    val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
     val lifecycleOwner = LocalLifecycleOwner.current
     val refreshCooldownNowMs by produceState(
         initialValue = System.currentTimeMillis(),
@@ -149,8 +157,9 @@ fun MainScreen(viewModel: MainViewModel) {
             }
         }
     }
-    LaunchedEffect(state.mode) {
+    LaunchedEffect(state.mode, isLandscape) {
         scrollState.animateScrollTo(0)
+        landscapeScrollState.animateScrollTo(0)
     }
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -161,33 +170,47 @@ fun MainScreen(viewModel: MainViewModel) {
     }
 
     Scaffold(containerColor = Color.Transparent) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(doorDuckBackgroundBrush())
-                .padding(padding)
-                .padding(horizontal = 18.dp, vertical = 16.dp)
-                .imePadding()
-                .verticalScroll(scrollState),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            HeaderCard(
-                mode = state.mode,
-                hasStoredCredentials = state.hasStoredCredentials,
-                onOpenSettings = viewModel::openSettings,
+        if (isLandscape && state.mode == ScreenMode.SETTINGS) {
+            LandscapeSettingsDashboard(
+                state = state,
+                viewModel = viewModel,
+                refreshCooldownNowMs = refreshCooldownNowMs,
+                scrollState = landscapeScrollState,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(doorDuckBackgroundBrush())
+                    .padding(padding)
+                    .imePadding(),
             )
-
-            when (state.mode) {
-                ScreenMode.WIZARD -> WizardContent(state = state, viewModel = viewModel)
-                ScreenMode.SETTINGS -> SettingsDashboard(
-                    state = state,
-                    viewModel = viewModel,
-                    refreshCooldownNowMs = refreshCooldownNowMs,
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(doorDuckBackgroundBrush())
+                    .padding(padding)
+                    .padding(horizontal = 18.dp, vertical = 16.dp)
+                    .imePadding()
+                    .verticalScroll(scrollState),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                HeaderCard(
+                    mode = state.mode,
+                    hasStoredCredentials = state.hasStoredCredentials,
+                    onOpenSettings = viewModel::openSettings,
                 )
-            }
 
-            state.infoMessage?.let { message ->
-                NoticeCard(message = message)
+                when (state.mode) {
+                    ScreenMode.WIZARD -> WizardContent(state = state, viewModel = viewModel)
+                    ScreenMode.SETTINGS -> SettingsDashboard(
+                        state = state,
+                        viewModel = viewModel,
+                        refreshCooldownNowMs = refreshCooldownNowMs,
+                    )
+                }
+
+                state.infoMessage?.let { message ->
+                    NoticeCard(message = message)
+                }
             }
         }
     }
@@ -983,6 +1006,119 @@ private fun SettingsDashboard(
 }
 
 @Composable
+private fun LandscapeSettingsDashboard(
+    state: MainUiState,
+    viewModel: MainViewModel,
+    refreshCooldownNowMs: Long,
+    scrollState: ScrollState,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        LandscapeQrCard(
+            qrImagePath = state.qrImagePath,
+            modifier = Modifier
+                .weight(0.43f)
+                .fillMaxHeight(),
+        )
+
+        Column(
+            modifier = Modifier
+                .weight(0.57f)
+                .fillMaxHeight()
+                .verticalScroll(scrollState),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            CompactHeaderCard()
+            StatusCard(
+                state = state,
+                onOpenUpdate = viewModel::openUpdateDialog,
+                compact = true,
+            )
+            if (state.lastError == SyncError.UNAUTHORIZED) {
+                TokenRecoveryCard(onResetData = viewModel::clearAllData)
+            }
+            QrControlsCard(
+                state = state,
+                refreshCooldownNowMs = refreshCooldownNowMs,
+                onRefresh = viewModel::refreshNow,
+                onAutoRefreshEnabledChange = viewModel::setAutoRefreshEnabled,
+                onMaxBrightnessEnabledChange = viewModel::setMaxBrightnessEnabled,
+            )
+            WidgetInstallCard()
+            UpdateCenterCard(
+                state = state.update,
+                onAutomaticChecksChange = viewModel::setAutomaticUpdateChecksEnabled,
+                onCheck = viewModel::checkForUpdates,
+                onInstall = viewModel::requestUpdateInstallation,
+            )
+            ClearDataCard(onClearData = viewModel::clearAllData)
+            CreditsCard()
+            DonateCard()
+            state.infoMessage?.let { message -> NoticeCard(message = message) }
+        }
+    }
+}
+
+@Composable
+private fun CompactHeaderCard() {
+    val dark = MaterialTheme.colorScheme.background.red < 0.2f
+    val heroBrush = if (dark) {
+        Brush.linearGradient(listOf(Color(0xFF342711), Color(0xFF201811)))
+    } else {
+        Brush.linearGradient(listOf(Color(0xFFFFF6DE), Color(0xFFFFEBCB)))
+    }
+    val borderColor = if (dark) Color(0xFF5D4521) else Color(0xFFE6D1A7)
+    val badgeColor = if (dark) Color(0x1FFFF1C8) else Color(0x14A56A00)
+    val primaryTextColor = if (dark) Color(0xFFFFF6E7) else Color(0xFF2E2418)
+    val secondaryTextColor = if (dark) Color(0xFFF0E3C6) else Color(0xFF6A5740)
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        color = Color.Transparent,
+        border = BorderStroke(1.dp, borderColor),
+    ) {
+        Row(
+            modifier = Modifier
+                .background(heroBrush)
+                .padding(horizontal = 12.dp, vertical = 9.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Surface(
+                modifier = Modifier.size(40.dp),
+                shape = RoundedCornerShape(12.dp),
+                color = badgeColor,
+            ) {
+                Image(
+                    painter = painterResource(R.mipmap.ic_launcher_foreground),
+                    contentDescription = stringResource(R.string.app_name),
+                    modifier = Modifier.padding(2.dp).clip(RoundedCornerShape(10.dp)),
+                )
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.app_name),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = primaryTextColor,
+                )
+                Text(
+                    text = stringResource(R.string.dashboard_subtitle),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = secondaryTextColor,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun UpdateCenterCard(
     state: UpdateUiState,
     onAutomaticChecksChange: (Boolean) -> Unit,
@@ -1364,8 +1500,9 @@ private fun ClearDataCard(onClearData: () -> Unit) {
 private fun StatusCard(
     state: MainUiState,
     onOpenUpdate: () -> Unit,
+    compact: Boolean = false,
 ) {
-    var detailsExpanded by remember { mutableStateOf(false) }
+    var detailsExpanded by rememberSaveable { mutableStateOf(false) }
     val readiness = state.qrReadiness()
     val hasUpdate = state.update.release != null
     val headline = when {
@@ -1426,23 +1563,23 @@ private fun StatusCard(
         modifier = Modifier
             .fillMaxWidth()
             .then(if (hasUpdate) Modifier.clickable(onClick = onOpenUpdate) else Modifier),
-        shape = RoundedCornerShape(28.dp),
+        shape = RoundedCornerShape(if (compact) 20.dp else 28.dp),
         colors = CardDefaults.cardColors(containerColor = palette.container),
         border = BorderStroke(1.dp, palette.border),
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+                .padding(if (compact) 10.dp else 16.dp),
+            verticalArrangement = Arrangement.spacedBy(if (compact) 8.dp else 12.dp),
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                horizontalArrangement = Arrangement.spacedBy(if (compact) 10.dp else 16.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Surface(
-                    modifier = Modifier.size(42.dp),
+                    modifier = Modifier.size(if (compact) 34.dp else 42.dp),
                     shape = CircleShape,
                     color = palette.badge,
                 ) {
@@ -1458,7 +1595,7 @@ private fun StatusCard(
                             },
                             contentDescription = null,
                             tint = palette.symbol,
-                            modifier = Modifier.size(20.dp),
+                            modifier = Modifier.size(if (compact) 18.dp else 20.dp),
                         )
                     }
                 }
@@ -1466,10 +1603,13 @@ private fun StatusCard(
                     headline,
                     modifier = Modifier.weight(1f),
                     color = palette.headline,
-                    style = MaterialTheme.typography.titleMedium,
+                    style = if (compact) MaterialTheme.typography.titleSmall else MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                 )
-                IconButton(onClick = { detailsExpanded = !detailsExpanded }) {
+                IconButton(
+                    onClick = { detailsExpanded = !detailsExpanded },
+                    modifier = if (compact) Modifier.size(36.dp) else Modifier,
+                ) {
                     Icon(
                         imageVector = if (detailsExpanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
                         contentDescription = stringResource(R.string.status_toggle_details),
@@ -1608,82 +1748,191 @@ private fun QrCard(
                     }
                 }
             }
+            QrControlsContent(
+                state = state,
+                isManualRefreshBlocked = isManualRefreshBlocked,
+                isIntensiveEndpoint = isIntensiveEndpoint,
+                onRefresh = onRefresh,
+                onAutoRefreshEnabledChange = onAutoRefreshEnabledChange,
+                onMaxBrightnessEnabledChange = onMaxBrightnessEnabledChange,
+            )
+        }
+    }
+}
 
-            Button(
-                onClick = onRefresh,
-                enabled = !state.syncInProgress && !isManualRefreshBlocked,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(DashboardActionButtonHeight),
-                shape = DashboardActionButtonShape,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
-                ),
+@Composable
+private fun LandscapeQrCard(
+    qrImagePath: String?,
+    modifier: Modifier = Modifier,
+) {
+    val bitmap = remember(qrImagePath) {
+        qrImagePath?.let { BitmapFactory.decodeFile(it) }
+    }
+    Card(
+        modifier = modifier,
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
+    ) {
+        BoxWithConstraints(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(8.dp),
+        ) {
+            val qrSize = minOf(maxWidth, (maxHeight - 28.dp).coerceAtLeast(0.dp))
+            Column(
+                modifier = Modifier.fillMaxSize(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
-                Icon(Icons.Filled.Refresh, contentDescription = null)
-                Box(modifier = Modifier.width(10.dp))
                 Text(
-                    stringResource(R.string.manual_refresh),
-                    style = MaterialTheme.typography.bodySmall,
-                    fontWeight = FontWeight.SemiBold,
-                )
-            }
-
-            if (!isIntensiveEndpoint) {
-                Row(
+                    text = stringResource(R.string.app_qr_title),
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Column(
-                        modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(2.dp),
-                    ) {
-                        Text(
-                            text = stringResource(R.string.auto_refresh_label),
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Medium,
-                        )
-                        Text(
-                            text = stringResource(R.string.auto_refresh_hint),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    Switch(
-                        checked = state.autoRefreshEnabled,
-                        onCheckedChange = onAutoRefreshEnabledChange,
-                    )
-                }
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(2.dp),
-                ) {
-                    Text(
-                        text = stringResource(R.string.max_brightness_label),
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Medium,
-                    )
-                    Text(
-                        text = stringResource(R.string.max_brightness_hint),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                Switch(
-                    checked = state.maxBrightnessEnabled,
-                    onCheckedChange = onMaxBrightnessEnabledChange,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
                 )
+                Surface(
+                    modifier = Modifier.size(qrSize),
+                    shape = RoundedCornerShape(18.dp),
+                    color = Color.White,
+                    shadowElevation = 8.dp,
+                ) {
+                    Box(
+                        modifier = Modifier.fillMaxSize().padding(8.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        if (bitmap == null) {
+                            Text(
+                                text = stringResource(R.string.app_qr_empty),
+                                color = Color(0xFF465062),
+                                style = MaterialTheme.typography.bodySmall,
+                                textAlign = TextAlign.Center,
+                            )
+                        } else {
+                            Image(
+                                bitmap = bitmap.asImageBitmap(),
+                                contentDescription = stringResource(R.string.widget_qr_content_description),
+                                modifier = Modifier.fillMaxSize().aspectRatio(1f),
+                                contentScale = ContentScale.Fit,
+                            )
+                        }
+                    }
+                }
             }
         }
+    }
+}
+
+@Composable
+private fun QrControlsCard(
+    state: MainUiState,
+    refreshCooldownNowMs: Long,
+    onRefresh: () -> Unit,
+    onAutoRefreshEnabledChange: (Boolean) -> Unit,
+    onMaxBrightnessEnabledChange: (Boolean) -> Unit,
+) {
+    val isManualRefreshBlocked = SyncPolicy.isManualRefreshBlocked(
+        state.manualRefreshBlockedUntilMs,
+        refreshCooldownNowMs,
+    )
+    val isIntensiveEndpoint = state.endpointPreset == EndpointPreset.INTENSIVE ||
+        AndroidEndpointSecrets.isIntensiveEndpoint(state.endpoint)
+
+    DashboardCard {
+        Text(
+            text = stringResource(R.string.qr_controls_title),
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+        )
+        QrControlsContent(
+            state = state,
+            isManualRefreshBlocked = isManualRefreshBlocked,
+            isIntensiveEndpoint = isIntensiveEndpoint,
+            onRefresh = onRefresh,
+            onAutoRefreshEnabledChange = onAutoRefreshEnabledChange,
+            onMaxBrightnessEnabledChange = onMaxBrightnessEnabledChange,
+        )
+    }
+}
+
+@Composable
+private fun QrControlsContent(
+    state: MainUiState,
+    isManualRefreshBlocked: Boolean,
+    isIntensiveEndpoint: Boolean,
+    onRefresh: () -> Unit,
+    onAutoRefreshEnabledChange: (Boolean) -> Unit,
+    onMaxBrightnessEnabledChange: (Boolean) -> Unit,
+) {
+    Button(
+        onClick = onRefresh,
+        enabled = !state.syncInProgress && !isManualRefreshBlocked,
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(DashboardActionButtonHeight),
+        shape = DashboardActionButtonShape,
+        colors = ButtonDefaults.buttonColors(
+            containerColor = MaterialTheme.colorScheme.primary,
+            contentColor = MaterialTheme.colorScheme.onPrimary,
+        ),
+    ) {
+        Icon(Icons.Filled.Refresh, contentDescription = null)
+        Box(modifier = Modifier.width(10.dp))
+        Text(
+            stringResource(R.string.manual_refresh),
+            style = MaterialTheme.typography.bodySmall,
+            fontWeight = FontWeight.SemiBold,
+        )
+    }
+
+    if (!isIntensiveEndpoint) {
+        QrSettingSwitch(
+            title = stringResource(R.string.auto_refresh_label),
+            hint = stringResource(R.string.auto_refresh_hint),
+            checked = state.autoRefreshEnabled,
+            onCheckedChange = onAutoRefreshEnabledChange,
+        )
+    }
+    QrSettingSwitch(
+        title = stringResource(R.string.max_brightness_label),
+        hint = stringResource(R.string.max_brightness_hint),
+        checked = state.maxBrightnessEnabled,
+        onCheckedChange = onMaxBrightnessEnabledChange,
+    )
+}
+
+@Composable
+private fun QrSettingSwitch(
+    title: String,
+    hint: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Medium,
+            )
+            Text(
+                text = hint,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+        )
     }
 }
 
@@ -1987,7 +2236,7 @@ private fun DonateCard() {
     val copyValueColor = if (isDark) Color(0xFFFFE4B5) else Color(0xFF6D4700)
     val phoneValue = Defaults.donatePhoneValue
     val cardValue = Defaults.donateCardValue
-    var expanded by remember { mutableStateOf(false) }
+    var expanded by rememberSaveable { mutableStateOf(false) }
     val arrowRotation by animateFloatAsState(
         targetValue = if (expanded) 180f else 0f,
         label = "donateArrowRotation",
