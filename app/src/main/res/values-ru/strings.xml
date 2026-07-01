@@ -152,7 +152,7 @@
     <string name="update_center_title">Обновление приложения</string>
     <string name="update_current_version">Текущая версия: %1$s</string>
     <string name="update_available_inline">Доступно %1$s</string>
-    <string name="update_current">(актуально)</string>
+    <string name="update_current">Обновлено</string>
     <string name="update_auto_check">Проверять автоматически</string>
     <string name="update_auto_check_hint">Сообщать, когда доступна новая версия.</string>
     <string name="update_check_now">Проверить обновления</string>

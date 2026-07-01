@@ -233,24 +233,18 @@ private fun HeaderCard(
     hasStoredCredentials: Boolean,
     onOpenSettings: () -> Unit,
 ) {
-    val dark = MaterialTheme.colorScheme.background.red < 0.2f
-    val heroBrush = if (dark) {
-        Brush.linearGradient(listOf(Color(0xFF342711), Color(0xFF201811)))
-    } else {
-        Brush.linearGradient(listOf(Color(0xFFFFF6DE), Color(0xFFFFEBCB)))
-    }
-    val borderColor = if (dark) Color(0xFF5D4521) else Color(0xFFE6D1A7)
-    val badgeColor = if (dark) Color(0x1FFFF1C8) else Color(0x14A56A00)
-    val primaryTextColor = if (dark) Color(0xFFFFF6E7) else Color(0xFF2E2418)
-    val secondaryTextColor = if (dark) Color(0xFFF0E3C6) else Color(0xFF6A5740)
-    val actionTint = if (dark) Color(0xFFFFE7B5) else Color(0xFF4A3211)
+    val heroBrush = Brush.linearGradient(listOf(Color(0xFF342711), Color(0xFF201811)))
+    val borderColor = Color(0xFF5D4521)
+    val badgeColor = Color(0x1FFFF1C8)
+    val primaryTextColor = Color(0xFFFFF6E7)
+    val secondaryTextColor = Color(0xFFF0E3C6)
 
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(30.dp),
         color = Color.Transparent,
         border = BorderStroke(1.dp, borderColor),
-        shadowElevation = if (dark) 0.dp else 6.dp,
+        shadowElevation = 0.dp,
     ) {
         Column(
             modifier = Modifier
@@ -1064,16 +1058,11 @@ private fun LandscapeSettingsDashboard(
 
 @Composable
 private fun CompactHeaderCard() {
-    val dark = MaterialTheme.colorScheme.background.red < 0.2f
-    val heroBrush = if (dark) {
-        Brush.linearGradient(listOf(Color(0xFF342711), Color(0xFF201811)))
-    } else {
-        Brush.linearGradient(listOf(Color(0xFFFFF6DE), Color(0xFFFFEBCB)))
-    }
-    val borderColor = if (dark) Color(0xFF5D4521) else Color(0xFFE6D1A7)
-    val badgeColor = if (dark) Color(0x1FFFF1C8) else Color(0x14A56A00)
-    val primaryTextColor = if (dark) Color(0xFFFFF6E7) else Color(0xFF2E2418)
-    val secondaryTextColor = if (dark) Color(0xFFF0E3C6) else Color(0xFF6A5740)
+    val heroBrush = Brush.linearGradient(listOf(Color(0xFF342711), Color(0xFF201811)))
+    val borderColor = Color(0xFF5D4521)
+    val badgeColor = Color(0x1FFFF1C8)
+    val primaryTextColor = Color(0xFFFFF6E7)
+    val secondaryTextColor = Color(0xFFF0E3C6)
 
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -1126,8 +1115,7 @@ private fun UpdateCenterCard(
     onInstall: () -> Unit,
 ) {
     val isBusy = state.status == UpdateStatus.CHECKING || state.status == UpdateStatus.DOWNLOADING
-    val dark = MaterialTheme.colorScheme.background.red < 0.2f
-    val availableColor = if (dark) Color(0xFFF2C64D) else Color(0xFFB77900)
+    val availableColor = Color(0xFFF2C64D)
 
     DashboardCard {
         Column(
@@ -1159,13 +1147,24 @@ private fun UpdateCenterCard(
                         textAlign = TextAlign.End,
                     )
                 } ?: if (state.status == UpdateStatus.UP_TO_DATE) {
-                    Text(
-                        text = stringResource(R.string.update_current),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Medium,
-                        textAlign = TextAlign.End,
-                    )
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = "•",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color(0xFF88D89F),
+                            fontWeight = FontWeight.Bold,
+                        )
+                        Text(
+                            text = stringResource(R.string.update_current),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontWeight = FontWeight.Medium,
+                            textAlign = TextAlign.End,
+                        )
+                    }
                 } else Unit
             }
             Row(
@@ -1521,43 +1520,42 @@ private fun StatusCard(
         readiness == QrReadiness.EXPIRED -> stringResource(R.string.status_qr_expired)
         else -> stringResource(R.string.status_qr_missing)
     }
-    val dark = MaterialTheme.colorScheme.background.red < 0.2f
     val palette = if (hasUpdate) {
         StatusPalette(
-            container = if (dark) Color(0xFF332612) else Color(0xFFFFF2D3),
-            border = if (dark) Color(0xFF6A5123) else Color(0xFFEACD8A),
-            badge = if (dark) Color(0xFFF2C64D) else Color(0xFFF5D68A),
-            headline = if (dark) Color(0xFFFFE7B5) else Color(0xFF6F4700),
+            container = Color(0xFF332612),
+            border = Color(0xFF6A5123),
+            badge = Color(0xFFF2C64D),
+            headline = Color(0xFFFFE7B5),
             symbolContainer = Color.Transparent,
-            symbol = if (dark) Color(0xFF51360A) else Color(0xFF7A4A00),
+            symbol = Color(0xFF51360A),
         )
     } else when (readiness) {
         QrReadiness.READY -> StatusPalette(
-            container = if (dark) Color(0xFF1F2A1D) else Color(0xFFF3FBEF),
-            border = if (dark) Color(0xFF355B34) else Color(0xFFB8DBA9),
-            badge = if (dark) Color(0xFF88D89F) else Color(0xFFCBEFBC),
-            headline = if (dark) Color(0xFFA6F0BA) else Color(0xFF247A39),
+            container = Color(0xFF1F2A1D),
+            border = Color(0xFF355B34),
+            badge = Color(0xFF88D89F),
+            headline = Color(0xFFA6F0BA),
             symbolContainer = Color.Transparent,
-            symbol = if (dark) Color(0xFF153A20) else Color(0xFF1F5C2F),
+            symbol = Color(0xFF153A20),
         )
         QrReadiness.CHECK_REQUIRED -> StatusPalette(
-            container = if (dark) Color(0xFF332612) else Color(0xFFFFF2D3),
-            border = if (dark) Color(0xFF6A5123) else Color(0xFFEACD8A),
-            badge = if (dark) Color(0xFFF2C64D) else Color(0xFFF5D68A),
-            headline = if (dark) Color(0xFFFFE7B5) else Color(0xFF6F4700),
+            container = Color(0xFF332612),
+            border = Color(0xFF6A5123),
+            badge = Color(0xFFF2C64D),
+            headline = Color(0xFFFFE7B5),
             symbolContainer = Color.Transparent,
-            symbol = if (dark) Color(0xFF51360A) else Color(0xFF7A4A00),
+            symbol = Color(0xFF51360A),
         )
         else -> StatusPalette(
-            container = if (dark) Color(0xFF331E1E) else Color(0xFFFDEAEA),
-            border = if (dark) Color(0xFF6A3636) else Color(0xFFE5AAAA),
-            badge = if (dark) Color(0xFFDF8C8C) else Color(0xFFF2B9B9),
-            headline = if (dark) Color(0xFFFFC8C8) else Color(0xFF9C2F2F),
+            container = Color(0xFF331E1E),
+            border = Color(0xFF6A3636),
+            badge = Color(0xFFDF8C8C),
+            headline = Color(0xFFFFC8C8),
             symbolContainer = Color.Transparent,
-            symbol = if (dark) Color(0xFF5A2222) else Color(0xFF8D2525),
+            symbol = Color(0xFF5A2222),
         )
     }
-    val textColor = if (dark) Color(0xFFF3EBDD) else Color(0xFF4E4335)
+    val textColor = Color(0xFFF3EBDD)
 
     Card(
         modifier = Modifier
@@ -2016,7 +2014,7 @@ private fun ConnectionCard(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
                     colors = ButtonDefaults.filledTonalButtonColors(
-                        containerColor = if (MaterialTheme.colorScheme.background.red < 0.2f) Color(0xFFF2C64D) else Color(0xFFF5D68A),
+                        containerColor = Color(0xFFF2C64D),
                         contentColor = Color(0xFF2D220F),
                     ),
                 ) {
@@ -2118,7 +2116,7 @@ private fun WidgetInstallCard() {
                 shape = DashboardActionButtonShape,
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.55f)),
                 colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = if (MaterialTheme.colorScheme.background.red < 0.2f) Color(0xFFFFE7B5) else Color(0xFF6F4700),
+                    contentColor = Color(0xFFFFE7B5),
                 ),
             ) {
                 Text(
@@ -2228,12 +2226,11 @@ private fun CreditsCard() {
 @Composable
 private fun DonateCard() {
     val context = LocalContext.current
-    val isDark = MaterialTheme.colorScheme.background.red < 0.2f
-    val primaryTextColor = if (isDark) Color(0xFFF8F1E4) else MaterialTheme.colorScheme.onSurface
-    val secondaryTextColor = if (isDark) Color(0xFFD7C8B2) else MaterialTheme.colorScheme.onSurfaceVariant
-    val copyContainerColor = if (isDark) Color(0xFF2B241B) else Color(0xFFFFF8EB)
-    val copyBorderColor = if (isDark) Color(0xFF5B4835) else Color(0xFFE8C98E)
-    val copyValueColor = if (isDark) Color(0xFFFFE4B5) else Color(0xFF6D4700)
+    val primaryTextColor = Color(0xFFF8F1E4)
+    val secondaryTextColor = Color(0xFFD7C8B2)
+    val copyContainerColor = Color(0xFF2B241B)
+    val copyBorderColor = Color(0xFF5B4835)
+    val copyValueColor = Color(0xFFFFE4B5)
     val phoneValue = Defaults.donatePhoneValue
     val cardValue = Defaults.donateCardValue
     var expanded by rememberSaveable { mutableStateOf(false) }
@@ -2384,9 +2381,8 @@ private fun CopyValuePill(
 
 @Composable
 private fun NoticeCard(message: String) {
-    val dark = MaterialTheme.colorScheme.background.red < 0.2f
-    val containerColor = if (dark) Color(0xFF332612) else Color(0xFFFFF2D3)
-    val borderColor = if (dark) Color(0xFF6A5123) else Color(0xFFEACD8A)
+    val containerColor = Color(0xFF332612)
+    val borderColor = Color(0xFF6A5123)
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -2398,7 +2394,7 @@ private fun NoticeCard(message: String) {
             text = message,
             modifier = Modifier.padding(16.dp),
             style = MaterialTheme.typography.bodyMedium,
-            color = if (dark) Color(0xFFFFF0D3) else Color(0xFF5C3F00),
+            color = Color(0xFFFFF0D3),
         )
     }
 }
@@ -2421,11 +2417,7 @@ private fun DashboardCard(content: @Composable ColumnScope.() -> Unit) {
 
 @Composable
 private fun doorDuckBackgroundBrush(): Brush {
-    return if (MaterialTheme.colorScheme.background.red < 0.2f) {
-        Brush.verticalGradient(listOf(Color(0xFF16120D), Color(0xFF201A14), Color(0xFF171411)))
-    } else {
-        Brush.verticalGradient(listOf(Color(0xFFFFFBF3), Color(0xFFF8F0E2), Color(0xFFF6F1EA)))
-    }
+    return Brush.verticalGradient(listOf(Color(0xFF16120D), Color(0xFF201A14), Color(0xFF171411)))
 }
 
 private fun requestPinQrWidget(context: Context): WidgetPinRequestResult {

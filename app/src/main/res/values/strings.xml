@@ -152,7 +152,7 @@
     <string name="update_center_title">App updates</string>
     <string name="update_current_version">Current version: %1$s</string>
     <string name="update_available_inline">%1$s available</string>
-    <string name="update_current">(up to date)</string>
+    <string name="update_current">Updated</string>
     <string name="update_auto_check">Check automatically</string>
     <string name="update_auto_check_hint">Notify you when a new version is available.</string>
     <string name="update_check_now">Check for updates</string>
