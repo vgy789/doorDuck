@@ -1785,7 +1785,9 @@ private fun LandscapeQrCard(
             ) {
                 Text(
                     text = stringResource(R.string.app_qr_title),
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 6.dp),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 1,

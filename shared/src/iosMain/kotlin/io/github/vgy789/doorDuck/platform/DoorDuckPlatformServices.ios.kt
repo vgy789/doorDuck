@@ -282,14 +282,22 @@ actual object DoorDuckPlatformServices {
         }
 
         val normalizedEndpoint = endpoint.trim().removeSuffix("/")
-        val roomId = runCatching {
-            createDirectMessageRoom(normalizedEndpoint, credentials)
+        val dmSession = runCatching {
+            createDirectMessageSession(normalizedEndpoint, credentials)
+        }.getOrElse { throwable ->
+            return PlatformQrRefreshResult.Failure(mapSyncError(throwable))
+        }
+
+        val existingMessageIds = runCatching {
+            loadRoomMessages(normalizedEndpoint, credentials, dmSession.roomId)
+                .mapNotNull(MessageDto::id)
+                .toSet()
         }.getOrElse { throwable ->
             return PlatformQrRefreshResult.Failure(mapSyncError(throwable))
         }
 
         val enterSucceeded = runCatching {
-            executeEnterCommand(normalizedEndpoint, credentials, roomId)
+            executeEnterCommand(normalizedEndpoint, credentials, dmSession.roomId)
         }.getOrElse { throwable ->
             return PlatformQrRefreshResult.Failure(mapSyncError(throwable))
         }
@@ -298,7 +306,13 @@ actual object DoorDuckPlatformServices {
         }
 
         val payload = runCatching {
-            pollForQrPayload(normalizedEndpoint, credentials, roomId)
+            pollForQrPayload(
+                endpoint = normalizedEndpoint,
+                credentials = credentials,
+                roomId = dmSession.roomId,
+                botUsername = dmSession.botUsername,
+                existingMessageIds = existingMessageIds,
+            )
         }.getOrElse { throwable ->
             return PlatformQrRefreshResult.Failure(mapSyncError(throwable))
         } ?: return PlatformQrRefreshResult.Failure(SyncError.BOT_RESPONSE_INVALID)
@@ -354,6 +368,11 @@ private data class QrPayload(
     val expiresAtMs: Long?,
 )
 
+private data class DmSession(
+    val roomId: String,
+    val botUsername: String,
+)
+
 private suspend fun executeJsonRequest(
     url: String,
     method: String,
@@ -388,15 +407,17 @@ private suspend fun executeJsonRequest(
     )
 }
 
-private suspend fun createDirectMessageRoom(
+private suspend fun createDirectMessageSession(
     endpoint: String,
     credentials: Credentials,
-): String {
+): DmSession {
+    val botUsername = resolveBotUsername(endpoint, credentials)
+        ?: throw SyncFailure(SyncError.BOT_NOT_FOUND)
     val response = executeJsonRequest(
         url = "$endpoint/dm.create",
         method = "POST",
         credentials = credentials,
-        body = json.encodeToString(DmCreateRequest.serializer(), DmCreateRequest(resolveBotUsername(endpoint, credentials) ?: throw SyncFailure(SyncError.BOT_NOT_FOUND))),
+        body = json.encodeToString(DmCreateRequest.serializer(), DmCreateRequest(botUsername)),
     )
     if (response.statusCode == 401 || response.statusCode == 403) {
         throw SyncFailure(SyncError.UNAUTHORIZED)
@@ -409,7 +430,10 @@ private suspend fun createDirectMessageRoom(
     if (!parsed.success || roomId.isNullOrBlank()) {
         throw SyncFailure(SyncError.BOT_RESPONSE_INVALID)
     }
-    return roomId
+    return DmSession(
+        roomId = roomId,
+        botUsername = botUsername,
+    )
 }
 
 private suspend fun executeEnterCommand(
@@ -472,24 +496,18 @@ private suspend fun pollForQrPayload(
     endpoint: String,
     credentials: Credentials,
     roomId: String,
+    botUsername: String,
+    existingMessageIds: Set<String>,
 ): QrPayload? {
     repeat(POLL_ATTEMPTS) { attempt ->
-        val response = executeJsonRequest(
-            url = "$endpoint/im.messages?roomId=$roomId&count=30",
-            method = "GET",
-            credentials = credentials,
-            body = null,
-        )
-        if (response.statusCode == 401 || response.statusCode == 403) {
-            throw SyncFailure(SyncError.UNAUTHORIZED)
-        }
-        if (response.statusCode !in 200..299) {
-            throw SyncFailure(SyncError.NETWORK)
-        }
-        val parsed = runCatching {
-            json.decodeFromString(ImMessagesResponse.serializer(), response.body)
-        }.getOrNull()
-        val payload = parsed?.messages?.firstNotNullOfOrNull(::extractQrPayload)
+        val payload = loadRoomMessages(endpoint, credentials, roomId)
+            .filter { message ->
+                val messageId = message.id
+                messageId != null && messageId !in existingMessageIds
+            }
+            .firstNotNullOfOrNull { message ->
+                extractQrPayload(message, botUsername)
+            }
         if (payload != null) {
             return payload
         }
@@ -500,8 +518,33 @@ private suspend fun pollForQrPayload(
     return null
 }
 
-private fun extractQrPayload(message: MessageDto): QrPayload? {
-    if (message.user?.username.orEmpty() != Defaults.botUsername) {
+private suspend fun loadRoomMessages(
+    endpoint: String,
+    credentials: Credentials,
+    roomId: String,
+): List<MessageDto> {
+    val response = executeJsonRequest(
+        url = "$endpoint/im.messages?roomId=$roomId&count=30",
+        method = "GET",
+        credentials = credentials,
+        body = null,
+    )
+    if (response.statusCode == 401 || response.statusCode == 403) {
+        throw SyncFailure(SyncError.UNAUTHORIZED)
+    }
+    if (response.statusCode !in 200..299) {
+        throw SyncFailure(SyncError.NETWORK)
+    }
+    return runCatching {
+        json.decodeFromString(ImMessagesResponse.serializer(), response.body)
+    }.getOrNull()?.messages.orEmpty()
+}
+
+private fun extractQrPayload(
+    message: MessageDto,
+    botUsername: String,
+): QrPayload? {
+    if (message.user?.username.orEmpty() != botUsername) {
         return null
     }
     val raw = message.message.orEmpty()
