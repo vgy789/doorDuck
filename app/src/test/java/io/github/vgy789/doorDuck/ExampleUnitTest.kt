@@ -2,6 +2,7 @@ package io.github.vgy789.doorDuck
 
 import io.github.vgy789.doorDuck.domain.ConnectionCheckErrorMapper
 import io.github.vgy789.doorDuck.domain.SyncPolicy
+import io.github.vgy789.doorDuck.domain.filterNewMessages
 import io.github.vgy789.doorDuck.model.ConnectionCheckResult
 import io.github.vgy789.doorDuck.model.QrImageValidationStatus
 import io.github.vgy789.doorDuck.model.QrReadiness
@@ -10,6 +11,7 @@ import io.github.vgy789.doorDuck.ui.InputSanitizer
 import io.github.vgy789.doorDuck.ui.RocketCredentialsExtractor
 import io.github.vgy789.doorDuck.ui.WizardStateMachine
 import io.github.vgy789.doorDuck.ui.WizardStep
+import io.github.vgy789.doorDuck.network.MessageDto
 import io.github.vgy789.doorDuck.update.AppRelease
 import io.github.vgy789.doorDuck.update.changelogItems
 import io.github.vgy789.doorDuck.update.shouldShowUpdateDialog
@@ -29,6 +31,20 @@ import retrofit2.Response
  * See [testing documentation](http://d.android.com/tools/testing).
  */
 class ExampleUnitTest {
+    @Test
+    fun qr_poll_ignores_messages_that_existed_before_request() {
+        val messages = listOf(
+            MessageDto(id = "new-qr", msg = "new"),
+            MessageDto(id = "old-qr", msg = "old"),
+            MessageDto(id = null, msg = "cannot prove freshness"),
+        )
+
+        assertEquals(
+            listOf(MessageDto(id = "new-qr", msg = "new")),
+            messages.filterNewMessages(existingMessageIds = setOf("old-qr")),
+        )
+    }
+
     @Test
     fun update_changelog_is_converted_to_clean_list_items() {
         val release = AppRelease(

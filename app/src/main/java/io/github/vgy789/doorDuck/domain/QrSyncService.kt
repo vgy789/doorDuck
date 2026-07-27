@@ -84,10 +84,18 @@ class QrSyncService(
 
         return runCatching {
             val api = clientFactory.create(settings.endpoint, credentials)
-            val roomId = createDm(api)
-            executeEnterCommand(api, roomId)
+            val dmSession = createDm(api)
+            val existingMessageIds = loadRoomMessages(api, dmSession.roomId)
+                .mapNotNull(MessageDto::id)
+                .toSet()
+            executeEnterCommand(api, dmSession.roomId)
 
-            val pollResult = pollForQrPayload(api, roomId)
+            val pollResult = pollForQrPayload(
+                api = api,
+                roomId = dmSession.roomId,
+                botUsername = dmSession.botUsername,
+                existingMessageIds = existingMessageIds,
+            )
             when (pollResult) {
                 is PollResult.RateLimited -> {
                     return RefreshResult.Failure(
@@ -152,15 +160,19 @@ class QrSyncService(
         return RefreshResult.NotConfigured
     }
 
-    private suspend fun createDm(api: RocketChatApi): String {
+    private suspend fun createDm(api: RocketChatApi): DmSession {
         val botUsername = resolveBotUsername(api) ?: throw SyncException(SyncError.BOT_NOT_FOUND)
         val response = api.createDirectMessage(DmCreateRequest(botUsername))
         if (!response.success) {
             throw SyncException(SyncError.BOT_RESPONSE_INVALID)
         }
-        return response.room?.rid
+        val roomId = response.room?.rid
             ?: response.room?.id
             ?: throw SyncException(SyncError.BOT_RESPONSE_INVALID)
+        return DmSession(
+            roomId = roomId,
+            botUsername = botUsername,
+        )
     }
 
     private suspend fun executeEnterCommand(api: RocketChatApi, roomId: String) {
@@ -200,10 +212,13 @@ class QrSyncService(
     private suspend fun pollForQrPayload(
         api: RocketChatApi,
         roomId: String,
+        botUsername: String,
+        existingMessageIds: Set<String>,
     ): PollResult {
         repeat(POLL_ATTEMPTS) { attempt ->
-            val messages = api.getMessages(roomId = roomId, count = 30).messages
-            val found = extractPollResult(messages)
+            val messages = loadRoomMessages(api, roomId)
+                .filterNewMessages(existingMessageIds)
+            val found = extractPollResult(messages, botUsername)
             if (found != null) return found
             if (attempt < POLL_ATTEMPTS - 1) {
                 delay(POLL_DELAY_MS)
@@ -212,9 +227,19 @@ class QrSyncService(
         return PollResult.NoQrYet
     }
 
-    private fun extractPollResult(messages: List<MessageDto>): PollResult? {
+    private suspend fun loadRoomMessages(
+        api: RocketChatApi,
+        roomId: String,
+    ): List<MessageDto> {
+        return api.getMessages(roomId = roomId, count = 30).messages
+    }
+
+    private fun extractPollResult(
+        messages: List<MessageDto>,
+        botUsername: String,
+    ): PollResult? {
         return messages.firstNotNullOfOrNull { message ->
-            if (message.u?.username.orEmpty() != Defaults.botUsername) return@firstNotNullOfOrNull null
+            if (message.u?.username.orEmpty() != botUsername) return@firstNotNullOfOrNull null
 
             val inlineBase64 = extractBase64FromMessage(message.msg)
             if (inlineBase64 != null) {
@@ -293,6 +318,11 @@ class QrSyncService(
         val expiresAtMs: Long?,
     )
 
+    private data class DmSession(
+        val roomId: String,
+        val botUsername: String,
+    )
+
     private sealed interface PollResult {
         data class Success(val payload: QrPayload) : PollResult
         data class RateLimited(val retryAfterMs: Long) : PollResult
@@ -340,6 +370,13 @@ class QrSyncService(
         usernames.firstOrNull { it.contains("code-generator", ignoreCase = true) }?.let { return it }
         usernames.firstOrNull { it.contains("qr", ignoreCase = true) && it.contains("generator", ignoreCase = true) }?.let { return it }
         return if (usernames.size == 1) usernames.first() else null
+    }
+}
+
+internal fun List<MessageDto>.filterNewMessages(existingMessageIds: Set<String>): List<MessageDto> {
+    return filter { message ->
+        val messageId = message.id
+        messageId != null && messageId !in existingMessageIds
     }
 }
 
