@@ -21,6 +21,11 @@
     <string name="app_qr_title">Current pass</string>
     <string name="qr_controls_title">QR controls</string>
     <string name="app_qr_empty">No QR code in local storage yet. Tap \"Refresh QR now\".</string>
+    <string name="debug_qr_title">Debug QR simulator</string>
+    <string name="debug_qr_hint">Create a local QR-shaped image for testing while Rocket.Chat is unavailable. This does not save credentials.</string>
+    <string name="debug_qr_action">Simulate QR reception</string>
+    <string name="debug_qr_simulated">Debug QR received locally. It expires in 15 minutes.</string>
+    <string name="debug_qr_simulation_failed">Could not create the debug QR. Try again.</string>
 
     <string name="action_start">Start</string>
     <string name="action_next">Next</string>

@@ -1,28 +1,25 @@
 package io.github.vgy789.doorDuck.domain
 
-import io.github.vgy789.doorDuck.model.Defaults
 import io.github.vgy789.doorDuck.platform.currentTimeMillis
 import io.github.vgy789.doorDuck.model.QrImageValidationStatus
 import io.github.vgy789.doorDuck.model.QrReadiness
 import io.github.vgy789.doorDuck.model.SyncError
 
 object SyncPolicy {
-    fun refreshAtMs(expiresAtMs: Long): Long {
-        return expiresAtMs
+    fun refreshAtMs(
+        expiresAtMs: Long,
+        behavior: DoorDuckBehavior = DoorDuckBehavior.Default,
+    ): Long {
+        return (expiresAtMs - behavior.refreshBeforeExpirationMs).coerceAtLeast(0L)
     }
 
     fun nextRetryDelayMs(
         attempt: Int,
         minDelayMs: Long = 0L,
+        behavior: DoorDuckBehavior = DoorDuckBehavior.Default,
     ): Long {
-        val scheduleMs = when (attempt.coerceAtLeast(0)) {
-            0 -> 60L * 60L * 1000L
-            1 -> 2L * 60L * 60L * 1000L
-            2 -> 3L * 60L * 60L * 1000L
-            3 -> 6L * 60L * 60L * 1000L
-            4 -> 12L * 60L * 60L * 1000L
-            else -> 24L * 60L * 60L * 1000L
-        }
+        val schedule = behavior.automaticRetryDelaysMs
+        val scheduleMs = schedule.getOrElse(attempt.coerceAtLeast(0)) { schedule.last() }
         return maxOf(scheduleMs, minDelayMs.coerceAtLeast(0L))
     }
 
@@ -30,8 +27,13 @@ object SyncPolicy {
         attempt: Int,
         nowMs: Long = currentTimeMillis(),
         minDelayMs: Long = 0L,
+        behavior: DoorDuckBehavior = DoorDuckBehavior.Default,
     ): Long {
-        return nowMs + nextRetryDelayMs(attempt = attempt, minDelayMs = minDelayMs)
+        return nowMs + nextRetryDelayMs(
+            attempt = attempt,
+            minDelayMs = minDelayMs,
+            behavior = behavior,
+        )
     }
 
     fun shouldRefreshNow(
@@ -41,12 +43,13 @@ object SyncPolicy {
         nextAutoRefreshAtMs: Long?,
         lastError: SyncError? = null,
         nowMs: Long = currentTimeMillis(),
+        behavior: DoorDuckBehavior = DoorDuckBehavior.Default,
     ): Boolean {
         if (!autoRefreshEnabled) return false
         if (lastError == SyncError.UNAUTHORIZED) return false
         if (localImagePath.isNullOrBlank()) return false
         if (expiresAtMs == null) return false
-        if (nowMs < refreshAtMs(expiresAtMs)) return false
+        if (nowMs < refreshAtMs(expiresAtMs, behavior)) return false
         if (nextAutoRefreshAtMs != null && nowMs < nextAutoRefreshAtMs) return false
         return true
     }
@@ -82,17 +85,26 @@ object SyncPolicy {
 
     fun nextManualRefreshAllowedAt(
         nowMs: Long = currentTimeMillis(),
+        behavior: DoorDuckBehavior = DoorDuckBehavior.Default,
     ): Long {
-        return nowMs + Defaults.manualRefreshCooldownMillis
+        return nowMs + behavior.manualRefreshCooldownMs
+    }
+
+    fun widgetRevealUntil(
+        nowMs: Long = currentTimeMillis(),
+        behavior: DoorDuckBehavior = DoorDuckBehavior.Default,
+    ): Long {
+        return nowMs + behavior.widgetRevealDurationMs
     }
 
     fun isSyncInProgress(
         storedInProgress: Boolean,
         startedAtMs: Long?,
         nowMs: Long = currentTimeMillis(),
+        behavior: DoorDuckBehavior = DoorDuckBehavior.Default,
     ): Boolean {
         if (!storedInProgress || startedAtMs == null) return false
         val elapsedMs = nowMs - startedAtMs
-        return elapsedMs in 0 until Defaults.syncInProgressTimeoutMillis
+        return elapsedMs in 0 until behavior.syncInProgressTimeoutMs
     }
 }

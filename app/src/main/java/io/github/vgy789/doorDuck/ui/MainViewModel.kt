@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import io.github.vgy789.doorDuck.AppContainer
+import io.github.vgy789.doorDuck.BuildConfig
 import io.github.vgy789.doorDuck.R
 import io.github.vgy789.doorDuck.config.AndroidEndpointSecrets
 import io.github.vgy789.doorDuck.model.ConnectionCheckResult
@@ -15,6 +16,7 @@ import io.github.vgy789.doorDuck.model.QrImageValidationStatus
 import io.github.vgy789.doorDuck.model.QrReadiness
 import io.github.vgy789.doorDuck.model.SyncError
 import io.github.vgy789.doorDuck.domain.SyncPolicy
+import io.github.vgy789.doorDuck.domain.DebugQrSimulator
 import io.github.vgy789.doorDuck.update.InstallResult
 import io.github.vgy789.doorDuck.update.ApkDownloadResult
 import io.github.vgy789.doorDuck.update.AppRelease
@@ -715,6 +717,26 @@ class MainViewModel(
             appContainer.workScheduler.enqueueManualRefresh()
             appContainer.widgetUpdateCoordinator.forceWidgetUpdateNow()
             setInfo(R.string.info_refresh_queued)
+        }
+    }
+
+    fun simulateQrCode() {
+        if (!BuildConfig.DEBUG) return
+        viewModelScope.launch {
+            val installed = runCatching { DebugQrSimulator.install(appContainer) }.getOrDefault(false)
+            if (installed) {
+                _uiState.update {
+                    it.copy(
+                        mode = ScreenMode.SETTINGS,
+                        wizardStep = WizardStep.DONE,
+                        infoMessage = appContainer.appContext.getString(R.string.debug_qr_simulated),
+                    )
+                }
+            } else {
+                _uiState.update {
+                    it.copy(infoMessage = appContainer.appContext.getString(R.string.debug_qr_simulation_failed))
+                }
+            }
         }
     }
 

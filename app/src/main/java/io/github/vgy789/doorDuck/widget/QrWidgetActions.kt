@@ -6,7 +6,6 @@ import androidx.glance.action.ActionParameters
 import androidx.glance.appwidget.action.ActionCallback
 import io.github.vgy789.doorDuck.DoorDuckApp
 import io.github.vgy789.doorDuck.domain.SyncPolicy
-import io.github.vgy789.doorDuck.model.Defaults
 import io.github.vgy789.doorDuck.model.SyncError
 
 class RefreshQrAction : ActionCallback {
@@ -51,7 +50,7 @@ class ToggleVisibilityAction : ActionCallback {
         val nowMs = System.currentTimeMillis()
         val isHidden = (snapshot.revealUntilMs ?: 0L) <= nowMs
         if (isHidden) {
-            container.settingsStore.setRevealUntil(nowMs + Defaults.revealDurationMillis)
+            container.settingsStore.setRevealUntil(SyncPolicy.widgetRevealUntil(nowMs))
         } else {
             container.settingsStore.setRevealUntil(null)
         }

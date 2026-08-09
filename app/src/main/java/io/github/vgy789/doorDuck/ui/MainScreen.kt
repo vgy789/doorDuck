@@ -136,7 +136,10 @@ private val DashboardActionButtonHeight = 48.dp
 private val DashboardActionButtonShape = RoundedCornerShape(14.dp)
 
 @Composable
-fun MainScreen(viewModel: MainViewModel) {
+fun MainScreen(
+    viewModel: MainViewModel,
+    simulateQrOnLaunch: Boolean = false,
+) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val scrollState = rememberScrollState()
     val landscapeScrollState = rememberScrollState()
@@ -160,6 +163,9 @@ fun MainScreen(viewModel: MainViewModel) {
     LaunchedEffect(state.mode, isLandscape) {
         scrollState.animateScrollTo(0)
         landscapeScrollState.animateScrollTo(0)
+    }
+    LaunchedEffect(simulateQrOnLaunch) {
+        if (simulateQrOnLaunch) viewModel.simulateQrCode()
     }
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -367,6 +373,9 @@ private fun WizardContent(
             canProceed = state.wizardCredentialsBlob.isNotBlank(),
             onNext = viewModel::wizardNext,
         )
+        if (BuildConfig.DEBUG) {
+            DebugQrCard(onSimulate = viewModel::simulateQrCode)
+        }
     }
 }
 
@@ -987,6 +996,9 @@ private fun SettingsDashboard(
             onMaxBrightnessEnabledChange = viewModel::setMaxBrightnessEnabled,
         )
         WidgetInstallCard()
+        if (BuildConfig.DEBUG) {
+            DebugQrCard(onSimulate = viewModel::simulateQrCode)
+        }
         UpdateCenterCard(
             state = state.update,
             onAutomaticChecksChange = viewModel::setAutomaticUpdateChecksEnabled,
@@ -996,6 +1008,30 @@ private fun SettingsDashboard(
         ClearDataCard(onClearData = viewModel::clearAllData)
         CreditsCard()
         DonateCard()
+    }
+}
+
+@Composable
+private fun DebugQrCard(onSimulate: () -> Unit) {
+    DashboardCard {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(
+                text = stringResource(R.string.debug_qr_title),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text = stringResource(R.string.debug_qr_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            OutlinedButton(
+                onClick = onSimulate,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(stringResource(R.string.debug_qr_action))
+            }
+        }
     }
 }
 
@@ -1042,6 +1078,9 @@ private fun LandscapeSettingsDashboard(
                 onMaxBrightnessEnabledChange = viewModel::setMaxBrightnessEnabled,
             )
             WidgetInstallCard()
+            if (BuildConfig.DEBUG) {
+                DebugQrCard(onSimulate = viewModel::simulateQrCode)
+            }
             UpdateCenterCard(
                 state = state.update,
                 onAutomaticChecksChange = viewModel::setAutomaticUpdateChecksEnabled,

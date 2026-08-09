@@ -24,10 +24,14 @@ import io.github.vgy789.doorDuck.ui.DoorDuckTheme
 import io.github.vgy789.doorDuck.ui.MainViewModel
 import io.github.vgy789.doorDuck.ui.MainViewModelFactory
 
+private const val ACTION_DEBUG_SIMULATE_QR = "io.github.vgy789.doorDuck.DEBUG_SIMULATE_QR"
+
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        val simulateQrOnLaunch = BuildConfig.DEBUG && intent?.action == ACTION_DEBUG_SIMULATE_QR
+        if (simulateQrOnLaunch) intent.action = null
         setContent {
             DoorDuckTheme {
                 val viewModel: MainViewModel = viewModel(
@@ -65,7 +69,7 @@ class MainActivity : ComponentActivity() {
                         notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                     }
                 }
-                MainScreen(viewModel = viewModel)
+                MainScreen(viewModel = viewModel, simulateQrOnLaunch = simulateQrOnLaunch)
             }
         }
     }
