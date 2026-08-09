@@ -1240,6 +1240,8 @@ private fun HomeDashboardScreen(
         DoorDuckQrCard(
             strings = strings,
             qrImageBase64 = qrImageBase64,
+            imageValidationStatus = imageValidationStatus,
+            expiresAtMs = expiresAtMs,
             isRefreshingQr = isRefreshingQr,
             onRefreshQr = onRefreshQr,
         )

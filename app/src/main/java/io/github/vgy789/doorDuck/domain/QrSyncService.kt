@@ -103,7 +103,7 @@ class QrSyncService(
                         retryAfterMs = pollResult.retryAfterMs,
                     )
                 }
-                PollResult.NoQrYet -> throw SyncException(SyncError.BOT_RESPONSE_INVALID)
+                PollResult.NoQrYet -> throw SyncException(SyncError.BOT_NO_RESPONSE)
                 is PollResult.Success -> {
                     val payload = pollResult.payload
                     if (!isValidQrImageBase64(payload.base64)) {

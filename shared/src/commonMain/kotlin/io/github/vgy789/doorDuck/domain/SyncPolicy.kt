@@ -69,6 +69,22 @@ object SyncPolicy {
         return if (nowMs >= expiresAtMs) QrReadiness.EXPIRED else QrReadiness.READY
     }
 
+    fun shouldDisplayQr(
+        hasImage: Boolean,
+        validationStatus: QrImageValidationStatus,
+        expiresAtMs: Long?,
+        nowMs: Long = currentTimeMillis(),
+    ): Boolean {
+        return when (readiness(hasImage, validationStatus, expiresAtMs, nowMs)) {
+            QrReadiness.READY,
+            QrReadiness.CHECK_REQUIRED,
+            -> true
+            QrReadiness.EXPIRED,
+            QrReadiness.MISSING_OR_INVALID,
+            -> false
+        }
+    }
+
     fun isExpired(
         expiresAtMs: Long?,
         nowMs: Long = currentTimeMillis(),

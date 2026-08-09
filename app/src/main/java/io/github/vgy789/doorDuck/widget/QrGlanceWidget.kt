@@ -59,7 +59,8 @@ private fun WidgetContent(uiState: WidgetUiState) {
         contentAlignment = Alignment.Center,
     ) {
         when {
-            uiState.configured && bitmap != null && uiState.readiness == QrReadiness.READY -> {
+            uiState.configured && bitmap != null && uiState.readiness != QrReadiness.EXPIRED &&
+                uiState.readiness != QrReadiness.MISSING_OR_INVALID -> {
                 Image(
                     provider = ImageProvider(bitmap),
                     contentDescription = context.getString(R.string.widget_qr_content_description),

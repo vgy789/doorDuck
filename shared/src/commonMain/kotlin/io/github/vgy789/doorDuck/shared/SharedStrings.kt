@@ -111,6 +111,7 @@ internal data class SharedStrings(
     val syncErrorUnauthorized: String,
     val syncErrorRateLimited: String,
     val syncErrorNetwork: String,
+    val syncErrorBotNoResponse: String,
     val syncErrorBotInvalid: String,
     val syncErrorImageDownload: String,
     val syncErrorUnknown: String,
@@ -139,6 +140,7 @@ internal data class SharedStrings(
             SyncError.RATE_LIMITED -> syncErrorRateLimited
             SyncError.NETWORK -> syncErrorNetwork
             SyncError.BOT_NOT_FOUND -> connectionBotNotFound
+            SyncError.BOT_NO_RESPONSE -> syncErrorBotNoResponse
             SyncError.BOT_RESPONSE_INVALID -> syncErrorBotInvalid
             SyncError.IMAGE_DOWNLOAD_FAILED -> syncErrorImageDownload
             SyncError.UNKNOWN, null -> syncErrorUnknown
@@ -257,6 +259,7 @@ internal data class SharedStrings(
             syncErrorUnauthorized = "QR refresh failed: invalid token or user Id.",
             syncErrorRateLimited = "QR refresh is delayed by the bot. doorDuck will retry later.",
             syncErrorNetwork = "QR refresh failed because of a network error.",
+            syncErrorBotNoResponse = "QR refresh failed: the bot did not respond.",
             syncErrorBotInvalid = "QR refresh failed because the bot response was invalid.",
             syncErrorImageDownload = "QR refresh failed because the image could not be decoded.",
             syncErrorUnknown = "QR refresh has not been completed yet.",
@@ -375,6 +378,7 @@ internal data class SharedStrings(
             syncErrorUnauthorized = "Не удалось обновить QR: неверный токен или Id.",
             syncErrorRateLimited = "Бот попросил подождать перед следующим обновлением QR. doorDuck повторит позже.",
             syncErrorNetwork = "Не удалось обновить QR из-за сетевой ошибки.",
+            syncErrorBotNoResponse = "Не удалось обновить QR: бот не ответил на запрос.",
             syncErrorBotInvalid = "Не удалось обновить QR: бот вернул некорректный ответ.",
             syncErrorImageDownload = "Не удалось обновить QR: изображение не удалось декодировать.",
             syncErrorUnknown = "Обновление QR ещё не выполнялось.",

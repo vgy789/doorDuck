@@ -21,6 +21,10 @@
     <string name="app_qr_title">Current pass</string>
     <string name="qr_controls_title">QR controls</string>
     <string name="app_qr_empty">No QR code in local storage yet. Tap \"Refresh QR now\".</string>
+    <string name="app_qr_error_prefix">QR code was not received. Reason:</string>
+    <string name="campus_qr_url">https://applicant.21-school.ru/campus-qr-code</string>
+    <string name="campus_qr_fallback_hint">The QR service is not responding right now. To enter campus, get a QR code from the portal.</string>
+    <string name="campus_qr_fallback_action">Open campus portal</string>
     <string name="debug_qr_title">Debug QR simulator</string>
     <string name="debug_qr_hint">Create a local QR-shaped image for testing while Rocket.Chat is unavailable. This does not save credentials.</string>
     <string name="debug_qr_action">Simulate QR reception</string>
@@ -103,6 +107,7 @@
     <string name="sync_error_unauthorized">unauthorized</string>
     <string name="sync_error_rate_limited">the bot asked to wait</string>
     <string name="sync_error_network">network error</string>
+    <string name="sync_error_bot_no_response">the QR bot did not respond to the request</string>
     <string name="sync_error_bot_response_invalid">invalid bot response</string>
     <string name="sync_error_image_download_failed">image download failed</string>
     <string name="sync_error_unknown">unknown error</string>

@@ -315,7 +315,7 @@ actual object DoorDuckPlatformServices {
             )
         }.getOrElse { throwable ->
             return PlatformQrRefreshResult.Failure(mapSyncError(throwable))
-        } ?: return PlatformQrRefreshResult.Failure(SyncError.BOT_RESPONSE_INVALID)
+        } ?: return PlatformQrRefreshResult.Failure(SyncError.BOT_NO_RESPONSE)
         if (!isValidQrImageBase64(payload.qrImageBase64)) {
             return PlatformQrRefreshResult.Failure(SyncError.IMAGE_DOWNLOAD_FAILED)
         }

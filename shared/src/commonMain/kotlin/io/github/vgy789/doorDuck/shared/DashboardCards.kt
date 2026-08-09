@@ -245,11 +245,18 @@ internal fun DoorDuckStatusCard(
 internal fun DoorDuckQrCard(
     strings: SharedStrings,
     qrImageBase64: String?,
+    imageValidationStatus: QrImageValidationStatus,
+    expiresAtMs: Long?,
     isRefreshingQr: Boolean,
     onRefreshQr: () -> Unit,
 ) {
     val dark = isDoorDuckDarkTheme()
     val qrFrameColor = if (dark) Color(0xFFFFFEFB) else Color(0xFFFFFFFF)
+    val shouldShowQr = SyncPolicy.shouldDisplayQr(
+        hasImage = !qrImageBase64.isNullOrBlank(),
+        validationStatus = imageValidationStatus,
+        expiresAtMs = expiresAtMs,
+    )
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -278,7 +285,7 @@ internal fun DoorDuckQrCard(
                     contentAlignment = Alignment.Center,
                 ) {
                     PlatformQrPreview(
-                        base64 = qrImageBase64,
+                        base64 = qrImageBase64.takeIf { shouldShowQr },
                         emptyText = strings.qrEmpty,
                         contentDescription = strings.qrTitle,
                         modifier = Modifier

@@ -120,6 +120,7 @@ import io.github.vgy789.doorDuck.config.AndroidEndpointSecrets
 import io.github.vgy789.doorDuck.domain.SyncPolicy
 import io.github.vgy789.doorDuck.model.Defaults
 import io.github.vgy789.doorDuck.model.IntensiveCampus
+import io.github.vgy789.doorDuck.model.QrImageValidationStatus
 import io.github.vgy789.doorDuck.model.QrReadiness
 import io.github.vgy789.doorDuck.model.SyncError
 import io.github.vgy789.doorDuck.widget.QrGlanceWidgetReceiver
@@ -214,9 +215,6 @@ fun MainScreen(
                     )
                 }
 
-                state.infoMessage?.let { message ->
-                    NoticeCard(message = message)
-                }
             }
         }
     }
@@ -1049,6 +1047,10 @@ private fun LandscapeSettingsDashboard(
     ) {
         LandscapeQrCard(
             qrImagePath = state.qrImagePath,
+            imageValidationStatus = state.imageValidationStatus,
+            expiresAtMs = state.expiresAtMs,
+            nowMs = refreshCooldownNowMs,
+            lastError = state.lastError,
             modifier = Modifier
                 .weight(0.43f)
                 .fillMaxHeight(),
@@ -1090,7 +1092,6 @@ private fun LandscapeSettingsDashboard(
             ClearDataCard(onClearData = viewModel::clearAllData)
             CreditsCard()
             DonateCard()
-            state.infoMessage?.let { message -> NoticeCard(message = message) }
         }
     }
 }
@@ -1554,6 +1555,7 @@ private fun StatusCard(
             state.update.release.tag.removePrefix("v"),
         )
         state.syncInProgress -> stringResource(R.string.status_qr_refreshing)
+        state.lastError != null && readiness != QrReadiness.READY -> stringResource(R.string.status_qr_needs_attention)
         readiness == QrReadiness.READY -> stringResource(R.string.status_qr_fresh)
         readiness == QrReadiness.CHECK_REQUIRED -> stringResource(R.string.status_qr_check_required)
         readiness == QrReadiness.EXPIRED -> stringResource(R.string.status_qr_expired)
@@ -1738,9 +1740,17 @@ private fun QrCard(
     onAutoRefreshEnabledChange: (Boolean) -> Unit,
     onMaxBrightnessEnabledChange: (Boolean) -> Unit,
 ) {
+    val lastError = state.lastError
     val bitmap = remember(state.qrImagePath) {
         state.qrImagePath?.let { BitmapFactory.decodeFile(it) }
     }
+    val readiness = state.qrReadiness(refreshCooldownNowMs)
+    val shouldShowQr = SyncPolicy.shouldDisplayQr(
+        hasImage = bitmap != null,
+        validationStatus = state.imageValidationStatus,
+        expiresAtMs = state.expiresAtMs,
+        nowMs = refreshCooldownNowMs,
+    )
     val isManualRefreshBlocked = SyncPolicy.isManualRefreshBlocked(
         state.manualRefreshBlockedUntilMs,
         refreshCooldownNowMs,
@@ -1768,11 +1778,8 @@ private fun QrCard(
                         .padding(18.dp),
                     contentAlignment = Alignment.Center,
                 ) {
-                    if (bitmap == null) {
-                        Text(
-                            text = stringResource(R.string.app_qr_empty),
-                            color = Color(0xFF465062),
-                        )
+                    if (!shouldShowQr || bitmap == null) {
+                        QrEmptyContent(lastError = lastError, readiness = readiness)
                     } else {
                         Image(
                             bitmap = bitmap.asImageBitmap(),
@@ -1798,13 +1805,78 @@ private fun QrCard(
 }
 
 @Composable
+private fun QrEmptyContent(lastError: SyncError?, readiness: QrReadiness? = null) {
+    val uriHandler = LocalUriHandler.current
+    val campusQrUrl = stringResource(R.string.campus_qr_url)
+
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        if (readiness == QrReadiness.EXPIRED) {
+            Text(
+                text = stringResource(R.string.status_qr_expired),
+                color = Color(0xFF465062),
+                textAlign = TextAlign.Center,
+            )
+        } else if (lastError == null) {
+            Text(
+                text = stringResource(R.string.app_qr_empty),
+                color = Color(0xFF465062),
+                textAlign = TextAlign.Center,
+            )
+        } else {
+            Text(
+                text = stringResource(R.string.app_qr_error_prefix),
+                color = Color(0xFF7B2D26),
+                fontWeight = FontWeight.SemiBold,
+                textAlign = TextAlign.Center,
+            )
+            Text(
+                text = lastError.toDisplayString(),
+                color = Color(0xFF465062),
+                textAlign = TextAlign.Center,
+            )
+            if (lastError == SyncError.BOT_NO_RESPONSE) {
+                Text(
+                    text = stringResource(R.string.campus_qr_fallback_hint),
+                    color = Color(0xFF465062),
+                    textAlign = TextAlign.Center,
+                )
+                TextButton(onClick = { uriHandler.openUri(campusQrUrl) }) {
+                    Text(stringResource(R.string.campus_qr_fallback_action))
+                    Box(modifier = Modifier.width(8.dp))
+                    Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null)
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun LandscapeQrCard(
     qrImagePath: String?,
+    imageValidationStatus: QrImageValidationStatus,
+    expiresAtMs: Long?,
+    nowMs: Long,
+    lastError: SyncError?,
     modifier: Modifier = Modifier,
 ) {
     val bitmap = remember(qrImagePath) {
         qrImagePath?.let { BitmapFactory.decodeFile(it) }
     }
+    val readiness = SyncPolicy.readiness(
+        hasImage = bitmap != null,
+        validationStatus = imageValidationStatus,
+        expiresAtMs = expiresAtMs,
+        nowMs = nowMs,
+    )
+    val shouldShowQr = SyncPolicy.shouldDisplayQr(
+        hasImage = bitmap != null,
+        validationStatus = imageValidationStatus,
+        expiresAtMs = expiresAtMs,
+        nowMs = nowMs,
+    )
     Card(
         modifier = modifier,
         shape = RoundedCornerShape(24.dp),
@@ -1824,9 +1896,7 @@ private fun LandscapeQrCard(
             ) {
                 Text(
                     text = stringResource(R.string.app_qr_title),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(start = 6.dp),
+                    modifier = Modifier.width(qrSize),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
@@ -1841,12 +1911,10 @@ private fun LandscapeQrCard(
                         modifier = Modifier.fillMaxSize().padding(8.dp),
                         contentAlignment = Alignment.Center,
                     ) {
-                        if (bitmap == null) {
-                            Text(
-                                text = stringResource(R.string.app_qr_empty),
-                                color = Color(0xFF465062),
-                                style = MaterialTheme.typography.bodySmall,
-                                textAlign = TextAlign.Center,
+                        if (!shouldShowQr || bitmap == null) {
+                            QrEmptyContent(
+                                lastError = lastError,
+                                readiness = readiness,
                             )
                         } else {
                             Image(
@@ -2421,26 +2489,6 @@ private fun CopyValuePill(
 }
 
 @Composable
-private fun NoticeCard(message: String) {
-    val containerColor = Color(0xFF332612)
-    val borderColor = Color(0xFF6A5123)
-
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(22.dp),
-        colors = CardDefaults.cardColors(containerColor = containerColor),
-        border = BorderStroke(1.dp, borderColor),
-    ) {
-        Text(
-            text = message,
-            modifier = Modifier.padding(16.dp),
-            style = MaterialTheme.typography.bodyMedium,
-            color = Color(0xFFFFF0D3),
-        )
-    }
-}
-
-@Composable
 private fun DashboardCard(content: @Composable ColumnScope.() -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -2495,6 +2543,7 @@ private fun SyncError.toDisplayString(): String {
         SyncError.RATE_LIMITED -> stringResource(R.string.sync_error_rate_limited)
         SyncError.NETWORK -> stringResource(R.string.sync_error_network)
         SyncError.BOT_NOT_FOUND -> stringResource(R.string.connection_bot_not_found)
+        SyncError.BOT_NO_RESPONSE -> stringResource(R.string.sync_error_bot_no_response)
         SyncError.BOT_RESPONSE_INVALID -> stringResource(R.string.sync_error_bot_response_invalid)
         SyncError.IMAGE_DOWNLOAD_FAILED -> stringResource(R.string.sync_error_image_download_failed)
         SyncError.UNKNOWN -> stringResource(R.string.sync_error_unknown)

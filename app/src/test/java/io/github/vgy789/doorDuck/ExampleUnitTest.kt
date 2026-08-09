@@ -327,4 +327,32 @@ class ExampleUnitTest {
             SyncPolicy.readiness(true, QrImageValidationStatus.INVALID, expiresAtMs = 2_000L, nowMs = 1_000L),
         )
     }
+
+    @Test
+    fun qr_display_keeps_previous_image_until_it_expires() {
+        assertTrue(
+            SyncPolicy.shouldDisplayQr(
+                hasImage = true,
+                validationStatus = QrImageValidationStatus.VALID,
+                expiresAtMs = 2_000L,
+                nowMs = 1_999L,
+            ),
+        )
+        assertFalse(
+            SyncPolicy.shouldDisplayQr(
+                hasImage = true,
+                validationStatus = QrImageValidationStatus.VALID,
+                expiresAtMs = 2_000L,
+                nowMs = 2_000L,
+            ),
+        )
+        assertTrue(
+            SyncPolicy.shouldDisplayQr(
+                hasImage = true,
+                validationStatus = QrImageValidationStatus.UNKNOWN,
+                expiresAtMs = null,
+                nowMs = 2_000L,
+            ),
+        )
+    }
 }

@@ -21,6 +21,10 @@
     <string name="app_qr_title">Текущий пропуск</string>
     <string name="qr_controls_title">Управление QR</string>
     <string name="app_qr_empty">QR-код ещё не загружен. Нажми «Обновить QR сейчас».</string>
+    <string name="app_qr_error_prefix">QR-код не получен. Причина:</string>
+    <string name="campus_qr_url">https://applicant.21-school.ru/campus-qr-code</string>
+    <string name="campus_qr_fallback_hint">Сервис QR временно не отвечает. Чтобы войти в кампус, получи QR на портале.</string>
+    <string name="campus_qr_fallback_action">Открыть портал кампуса</string>
     <string name="debug_qr_title">Симулятор QR для отладки</string>
     <string name="debug_qr_hint">Создаёт локальное изображение QR для проверки, пока Rocket.Chat недоступен. Реквизиты не сохраняются.</string>
     <string name="debug_qr_action">Симулировать получение QR</string>
@@ -103,6 +107,7 @@
     <string name="sync_error_unauthorized">ошибка авторизации</string>
     <string name="sync_error_rate_limited">обновление отложено, бот попросил подождать</string>
     <string name="sync_error_network">сетевая ошибка</string>
+    <string name="sync_error_bot_no_response">QR-бот не ответил на запрос</string>
     <string name="sync_error_bot_response_invalid">некорректный ответ бота</string>
     <string name="sync_error_image_download_failed">не удалось загрузить изображение</string>
     <string name="sync_error_unknown">неизвестная ошибка</string>
