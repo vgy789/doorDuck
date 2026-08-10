@@ -120,7 +120,7 @@
     <string name="max_brightness_label">Maximum brightness</string>
     <string name="max_brightness_hint">Launch the app with maximum screen brightness.</string>
     <string name="wizard_launch_hint">Open setup to change the Rocket.Chat address, user ID, or token.</string>
-    <string name="widget_install_action">+ Add widget to home screen</string>
+    <string name="widget_install_action">Add widget to home screen</string>
     <string name="widget_variant_sheet_title">Choose widget style</string>
     <string name="widget_variant_sheet_hint">Choose a style, then tap “Add”.</string>
     <string name="widget_variant_tonal_short">Tonal</string>
@@ -200,7 +200,7 @@
     <string name="update_status_downloading">Downloading update — %1$d%%</string>
     <string name="update_status_ready">Update ready to install</string>
     <string name="donate_hint">If you feel like it, you can buy the author a can of condensed milk.</string>
-    <string name="donate_toggle_text">🤍 Buy the author condensed milk</string>
+    <string name="donate_toggle_text">Buy the author condensed milk</string>
     <string name="donate_transfer_sbp">SBP transfer</string>
     <string name="donate_phone_label">Number</string>
     <string name="donate_card_label">Card</string>

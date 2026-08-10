@@ -120,7 +120,7 @@
     <string name="max_brightness_label">Максимальная яркость</string>
     <string name="max_brightness_hint">Запускать приложение с максимальной яркостью.</string>
     <string name="wizard_launch_hint">Открой настройку, чтобы изменить адрес Rocket.Chat, ID или токен.</string>
-    <string name="widget_install_action">+ Добавить виджет на рабочий стол</string>
+    <string name="widget_install_action">Добавить виджет на рабочий стол</string>
     <string name="widget_variant_sheet_title">Выбери стиль виджета</string>
     <string name="widget_variant_sheet_hint">Выбери стиль и нажми «Добавить».</string>
     <string name="widget_variant_tonal_short">Тональный</string>
@@ -200,7 +200,7 @@
     <string name="update_status_downloading">Загружаем обновление — %1$d%%</string>
     <string name="update_status_ready">Обновление готово к установке</string>
     <string name="donate_hint">Если захочется, можно угостить автора банкой сгущёнки.</string>
-    <string name="donate_toggle_text">🤍 Купить автору сгущёнку</string>
+    <string name="donate_toggle_text">Купить автору сгущёнку</string>
     <string name="donate_transfer_sbp">Перевод по СБП</string>
     <string name="donate_phone_label">Номер</string>
     <string name="donate_card_label">Карта</string>

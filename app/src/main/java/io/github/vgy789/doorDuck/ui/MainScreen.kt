@@ -46,13 +46,17 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.ArrowOutward
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.DeleteForever
+import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.InstallMobile
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Language
@@ -60,12 +64,14 @@ import androidx.compose.material.icons.filled.PersonOutline
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.SystemUpdateAlt
+import androidx.compose.material.icons.filled.Widgets
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -99,6 +105,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -106,6 +113,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -210,9 +218,10 @@ fun MainScreen(
                     .fillMaxSize()
                     .background(doorDuckBackgroundBrush())
                     .padding(padding)
-                    .padding(horizontal = 18.dp, vertical = 16.dp)
+                    .padding(start = 18.dp, end = 18.dp, top = 16.dp)
                     .imePadding()
-                    .verticalScroll(scrollState),
+                    .verticalScroll(scrollState)
+                    .padding(bottom = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
                 HeaderCard(
@@ -247,16 +256,37 @@ fun MainScreen(
 }
 
 @Composable
+private fun DoorDuckLogo(
+    contentDescription: String?,
+    modifier: Modifier = Modifier,
+) {
+    val darkTheme = LocalDoorDuckDarkTheme.current
+    Image(
+        painter = painterResource(
+            if (darkTheme) R.mipmap.ic_launcher_foreground else R.drawable.ic_launcher_foreground_light,
+        ),
+        contentDescription = contentDescription,
+        modifier = modifier,
+        contentScale = ContentScale.Fit,
+    )
+}
+
+@Composable
 private fun HeaderCard(
     mode: ScreenMode,
     hasStoredCredentials: Boolean,
     onOpenSettings: () -> Unit,
 ) {
-    val heroBrush = Brush.linearGradient(listOf(Color(0xFF342711), Color(0xFF201811)))
-    val borderColor = Color(0xFF5D4521)
-    val badgeColor = Color(0x1FFFF1C8)
-    val primaryTextColor = Color(0xFFFFF6E7)
-    val secondaryTextColor = Color(0xFFF0E3C6)
+    val darkTheme = LocalDoorDuckDarkTheme.current
+    val heroBrush = if (darkTheme) Brush.linearGradient(listOf(Color(0xFF342711), Color(0xFF201811))) else SolidColor(MaterialTheme.colorScheme.surfaceContainerLow)
+    val borderColor = if (darkTheme) Color(0xFF5D4521) else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.62f)
+    val logoContainerColor = MaterialTheme.colorScheme.surfaceVariant
+    val logoContainerBorder = BorderStroke(
+        1.dp,
+        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.42f),
+    )
+    val primaryTextColor = if (darkTheme) Color(0xFFFFF6E7) else MaterialTheme.colorScheme.onSurface
+    val secondaryTextColor = if (darkTheme) Color(0xFFF0E3C6) else MaterialTheme.colorScheme.onSurfaceVariant
 
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -269,7 +299,7 @@ private fun HeaderCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(heroBrush)
-                .padding(20.dp),
+                .padding(horizontal = 18.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             Row(
@@ -280,11 +310,11 @@ private fun HeaderCard(
                 Surface(
                     modifier = Modifier.size(62.dp),
                     shape = RoundedCornerShape(20.dp),
-                    color = badgeColor,
+                    color = logoContainerColor,
+                    border = logoContainerBorder,
                 ) {
                     Box(modifier = Modifier.padding(3.dp), contentAlignment = Alignment.Center) {
-                        Image(
-                            painter = painterResource(R.mipmap.ic_launcher_foreground),
+                        DoorDuckLogo(
                             contentDescription = stringResource(R.string.app_name),
                             modifier = Modifier
                                 .fillMaxSize()
@@ -470,10 +500,10 @@ private fun WizardInstructionBlock(
                 placeholder = { Text(stringResource(R.string.credentials_blob_label)) },
                 shape = RoundedCornerShape(12.dp),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = Color(0xFFE0A81D),
-                    unfocusedBorderColor = Color(0xFF8A6A35).copy(alpha = 0.75f),
-                    focusedLabelColor = Color(0xFFE0A81D),
-                    cursorColor = Color(0xFFE0A81D),
+                    focusedBorderColor = if (LocalDoorDuckDarkTheme.current) Color(0xFFE0A81D) else MaterialTheme.colorScheme.primary,
+                    unfocusedBorderColor = if (LocalDoorDuckDarkTheme.current) Color(0xFF8A6A35).copy(alpha = 0.75f) else MaterialTheme.colorScheme.outline,
+                    focusedLabelColor = if (LocalDoorDuckDarkTheme.current) Color(0xFFE0A81D) else MaterialTheme.colorScheme.primary,
+                    cursorColor = if (LocalDoorDuckDarkTheme.current) Color(0xFFE0A81D) else MaterialTheme.colorScheme.primary,
                 ),
                 minLines = 4,
             )
@@ -494,7 +524,7 @@ private fun TokenExampleFullscreenDialog(onDismiss: () -> Unit) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.78f))
+                .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.78f))
                 .clickable(onClick = onDismiss)
                 .padding(18.dp),
             contentAlignment = Alignment.Center,
@@ -582,7 +612,9 @@ private fun TokenLinkButton(
         shape = RoundedCornerShape(8.dp),
         border = BorderStroke(
             1.dp,
-            if (enabled) Color(0xFFE0A81D) else MaterialTheme.colorScheme.outline.copy(alpha = 0.45f),
+            if (enabled && LocalDoorDuckDarkTheme.current) Color(0xFFE0A81D)
+            else if (enabled) MaterialTheme.colorScheme.primary
+            else MaterialTheme.colorScheme.outline.copy(alpha = 0.45f),
         ),
         colors = ButtonDefaults.outlinedButtonColors(
             contentColor = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
@@ -744,7 +776,7 @@ private fun EndpointHintFullscreenDialog(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.78f))
+                .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.78f))
                 .clickable(onClick = onDismiss)
                 .padding(18.dp),
             contentAlignment = Alignment.Center,
@@ -946,32 +978,31 @@ private fun WizardButtons(
     onNext: () -> Unit,
 ) {
     val enabled = !isCheckingConnection && canProceed
+    val darkTheme = LocalDoorDuckDarkTheme.current
     val buttonShape = RoundedCornerShape(18.dp)
     Surface(
         modifier = Modifier
             .fillMaxWidth()
             .height(56.dp),
         shape = buttonShape,
-        color = if (enabled) Color.Transparent else Color(0xFF4C453B),
+        color = if (darkTheme) {
+            if (enabled) Color.Transparent else Color(0xFF4C453B)
+        } else if (enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
     ) {
         Button(
             onClick = onNext,
             enabled = enabled,
-            modifier = Modifier
-                .fillMaxSize()
-                .then(
-                    if (enabled) {
-                        Modifier.background(Brush.horizontalGradient(listOf(Color(0xFFF8D66A), Color(0xFFE0A81D))))
-                    } else {
-                        Modifier
-                    },
-                ),
+            modifier = Modifier.fillMaxSize().then(
+                if (darkTheme && enabled) Modifier.background(
+                    Brush.horizontalGradient(listOf(Color(0xFFF8D66A), Color(0xFFE0A81D))),
+                ) else Modifier,
+            ),
             shape = buttonShape,
             colors = ButtonDefaults.buttonColors(
-                containerColor = Color.Transparent,
-                contentColor = Color(0xFF33260F),
-                disabledContainerColor = Color.Transparent,
-                disabledContentColor = Color(0xFFD6C8B2),
+                containerColor = if (darkTheme) Color.Transparent else MaterialTheme.colorScheme.primary,
+                contentColor = if (darkTheme) Color(0xFF33260F) else MaterialTheme.colorScheme.onPrimary,
+                disabledContainerColor = if (darkTheme) Color.Transparent else MaterialTheme.colorScheme.surfaceVariant,
+                disabledContentColor = if (darkTheme) Color(0xFFD6C8B2) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
             ),
         ) {
             Text(
@@ -1019,8 +1050,7 @@ private fun SettingsDashboard(
             onInstall = viewModel::requestUpdateInstallation,
         )
         ClearDataCard(onClearData = viewModel::clearAllData)
-        CreditsCard()
-        DonateCard()
+        SupportFooterCard()
     }
 }
 
@@ -1075,7 +1105,8 @@ private fun LandscapeSettingsDashboard(
             modifier = Modifier
                 .weight(0.57f)
                 .fillMaxHeight()
-                .verticalScroll(scrollState),
+                .verticalScroll(scrollState)
+                .padding(bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             CompactHeaderCard()
@@ -1105,19 +1136,23 @@ private fun LandscapeSettingsDashboard(
                 onInstall = viewModel::requestUpdateInstallation,
             )
             ClearDataCard(onClearData = viewModel::clearAllData)
-            CreditsCard()
-            DonateCard()
+            SupportFooterCard()
         }
     }
 }
 
 @Composable
 private fun CompactHeaderCard() {
-    val heroBrush = Brush.linearGradient(listOf(Color(0xFF342711), Color(0xFF201811)))
-    val borderColor = Color(0xFF5D4521)
-    val badgeColor = Color(0x1FFFF1C8)
-    val primaryTextColor = Color(0xFFFFF6E7)
-    val secondaryTextColor = Color(0xFFF0E3C6)
+    val darkTheme = LocalDoorDuckDarkTheme.current
+    val heroBrush = if (darkTheme) Brush.linearGradient(listOf(Color(0xFF342711), Color(0xFF201811))) else SolidColor(MaterialTheme.colorScheme.surfaceContainerLow)
+    val borderColor = if (darkTheme) Color(0xFF5D4521) else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.62f)
+    val logoContainerColor = MaterialTheme.colorScheme.surfaceVariant
+    val logoContainerBorder = BorderStroke(
+        1.dp,
+        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.42f),
+    )
+    val primaryTextColor = if (darkTheme) Color(0xFFFFF6E7) else MaterialTheme.colorScheme.onSurface
+    val secondaryTextColor = if (darkTheme) Color(0xFFF0E3C6) else MaterialTheme.colorScheme.onSurfaceVariant
 
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -1128,17 +1163,17 @@ private fun CompactHeaderCard() {
         Row(
             modifier = Modifier
                 .background(heroBrush)
-                .padding(horizontal = 12.dp, vertical = 9.dp),
+                .padding(horizontal = 12.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Surface(
                 modifier = Modifier.size(40.dp),
                 shape = RoundedCornerShape(12.dp),
-                color = badgeColor,
+                color = logoContainerColor,
+                border = logoContainerBorder,
             ) {
-                Image(
-                    painter = painterResource(R.mipmap.ic_launcher_foreground),
+                DoorDuckLogo(
                     contentDescription = stringResource(R.string.app_name),
                     modifier = Modifier.padding(2.dp).clip(RoundedCornerShape(10.dp)),
                 )
@@ -1170,7 +1205,7 @@ private fun UpdateCenterCard(
     onInstall: () -> Unit,
 ) {
     val isBusy = state.status == UpdateStatus.CHECKING || state.status == UpdateStatus.DOWNLOADING
-    val availableColor = Color(0xFFF2C64D)
+    val availableColor = if (LocalDoorDuckDarkTheme.current) Color(0xFFF2C64D) else MaterialTheme.colorScheme.primary
 
     DashboardCard {
         Column(
@@ -1209,7 +1244,7 @@ private fun UpdateCenterCard(
                         Text(
                             text = "•",
                             style = MaterialTheme.typography.bodySmall,
-                            color = Color(0xFF88D89F),
+                            color = if (LocalDoorDuckDarkTheme.current) Color(0xFF88D89F) else MaterialTheme.colorScheme.tertiary,
                             fontWeight = FontWeight.Bold,
                         )
                         Text(
@@ -1322,7 +1357,7 @@ private fun UpdateDialog(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.62f))
+                .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.62f))
                 .clickable(onClick = onDismiss)
                 .padding(20.dp),
             contentAlignment = Alignment.Center,
@@ -1510,17 +1545,23 @@ private fun ClearDataCard(onClearData: () -> Unit) {
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.error,
                 )
-                OutlinedButton(
+                Button(
                     onClick = onClearData,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(DashboardActionButtonHeight),
                     shape = DashboardActionButtonShape,
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.56f)),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = MaterialTheme.colorScheme.error.copy(alpha = 0.85f),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error,
+                        contentColor = MaterialTheme.colorScheme.onError,
                     ),
                 ) {
+                    Icon(
+                        imageVector = Icons.Filled.DeleteForever,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Box(modifier = Modifier.width(8.dp))
                     Text(
                         stringResource(R.string.action_clear_all_data_confirm),
                         style = MaterialTheme.typography.bodySmall,
@@ -1528,17 +1569,20 @@ private fun ClearDataCard(onClearData: () -> Unit) {
                     )
                 }
             } else {
-                OutlinedButton(
+                TextButton(
                     onClick = { confirmVisible = true },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(DashboardActionButtonHeight),
                     shape = DashboardActionButtonShape,
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.56f)),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = MaterialTheme.colorScheme.error.copy(alpha = 0.85f),
-                    ),
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
                 ) {
+                    Icon(
+                        imageVector = Icons.Filled.DeleteOutline,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Box(modifier = Modifier.width(8.dp))
                     Text(
                         stringResource(R.string.action_clear_all_data),
                         style = MaterialTheme.typography.bodySmall,
@@ -1559,6 +1603,7 @@ private fun StatusCard(
     var detailsExpanded by rememberSaveable { mutableStateOf(false) }
     val readiness = state.qrReadiness()
     val hasUpdate = state.update.release != null
+    val darkTheme = LocalDoorDuckDarkTheme.current
     val headline = when {
         hasUpdate && state.update.status == UpdateStatus.DOWNLOADING -> stringResource(
             R.string.update_status_downloading,
@@ -1577,41 +1622,49 @@ private fun StatusCard(
         else -> stringResource(R.string.status_qr_missing)
     }
     val palette = if (hasUpdate) {
-        StatusPalette(
-            container = Color(0xFF332612),
-            border = Color(0xFF6A5123),
-            badge = Color(0xFFF2C64D),
-            headline = Color(0xFFFFE7B5),
-            symbolContainer = Color.Transparent,
-            symbol = Color(0xFF51360A),
+        if (darkTheme) StatusPalette(
+            container = Color(0xFF332612), border = Color(0xFF6A5123),
+            badge = Color(0xFFF2C64D), headline = Color(0xFFFFE7B5), symbol = Color(0xFF51360A),
+        ) else StatusPalette(
+            container = MaterialTheme.colorScheme.primaryContainer,
+            border = MaterialTheme.colorScheme.primary,
+            badge = MaterialTheme.colorScheme.primary,
+            headline = MaterialTheme.colorScheme.onPrimaryContainer,
+            symbol = MaterialTheme.colorScheme.onPrimary,
         )
     } else when (readiness) {
-        QrReadiness.READY -> StatusPalette(
-            container = Color(0xFF1F2A1D),
-            border = Color(0xFF355B34),
-            badge = Color(0xFF88D89F),
-            headline = Color(0xFFA6F0BA),
-            symbolContainer = Color.Transparent,
-            symbol = Color(0xFF153A20),
+        QrReadiness.READY -> if (darkTheme) StatusPalette(
+            container = Color(0xFF1F2A1D), border = Color(0xFF355B34),
+            badge = Color(0xFF88D89F), headline = Color(0xFFA6F0BA), symbol = Color(0xFF153A20),
+        ) else StatusPalette(
+            container = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.08f),
+            border = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.28f),
+            badge = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.82f),
+            headline = MaterialTheme.colorScheme.onTertiaryContainer,
+            symbol = MaterialTheme.colorScheme.tertiary,
         )
-        QrReadiness.CHECK_REQUIRED -> StatusPalette(
-            container = Color(0xFF332612),
-            border = Color(0xFF6A5123),
-            badge = Color(0xFFF2C64D),
-            headline = Color(0xFFFFE7B5),
-            symbolContainer = Color.Transparent,
-            symbol = Color(0xFF51360A),
+        QrReadiness.CHECK_REQUIRED -> if (darkTheme) StatusPalette(
+            container = Color(0xFF332612), border = Color(0xFF6A5123),
+            badge = Color(0xFFF2C64D), headline = Color(0xFFFFE7B5), symbol = Color(0xFF51360A),
+        ) else StatusPalette(
+            container = MaterialTheme.colorScheme.primaryContainer,
+            border = MaterialTheme.colorScheme.primary,
+            badge = MaterialTheme.colorScheme.primary,
+            headline = MaterialTheme.colorScheme.onPrimaryContainer,
+            symbol = MaterialTheme.colorScheme.onPrimary,
         )
-        else -> StatusPalette(
-            container = Color(0xFF331E1E),
-            border = Color(0xFF6A3636),
-            badge = Color(0xFFDF8C8C),
-            headline = Color(0xFFFFC8C8),
-            symbolContainer = Color.Transparent,
-            symbol = Color(0xFF5A2222),
+        else -> if (darkTheme) StatusPalette(
+            container = Color(0xFF331E1E), border = Color(0xFF6A3636),
+            badge = Color(0xFFDF8C8C), headline = Color(0xFFFFC8C8), symbol = Color(0xFF5A2222),
+        ) else StatusPalette(
+            container = MaterialTheme.colorScheme.errorContainer,
+            border = MaterialTheme.colorScheme.error,
+            badge = MaterialTheme.colorScheme.error,
+            headline = MaterialTheme.colorScheme.onErrorContainer,
+            symbol = MaterialTheme.colorScheme.onError,
         )
     }
-    val textColor = Color(0xFFF3EBDD)
+    val textColor = if (darkTheme) Color(0xFFF3EBDD) else palette.headline
 
     Card(
         modifier = Modifier
@@ -1712,7 +1765,6 @@ private data class StatusPalette(
     val border: Color,
     val badge: Color,
     val headline: Color,
-    val symbolContainer: Color,
     val symbol: Color,
 )
 
@@ -1831,31 +1883,31 @@ private fun QrEmptyContent(lastError: SyncError?, readiness: QrReadiness? = null
         if (readiness == QrReadiness.EXPIRED) {
             Text(
                 text = stringResource(R.string.status_qr_expired),
-                color = Color(0xFF465062),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
             )
         } else if (lastError == null) {
             Text(
                 text = stringResource(R.string.app_qr_empty),
-                color = Color(0xFF465062),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
             )
         } else {
             Text(
                 text = stringResource(R.string.app_qr_error_prefix),
-                color = Color(0xFF7B2D26),
+                color = MaterialTheme.colorScheme.error,
                 fontWeight = FontWeight.SemiBold,
                 textAlign = TextAlign.Center,
             )
             Text(
                 text = lastError.toDisplayString(),
-                color = Color(0xFF465062),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
             )
             if (lastError == SyncError.BOT_NO_RESPONSE) {
                 Text(
                     text = stringResource(R.string.campus_qr_fallback_hint),
-                    color = Color(0xFF465062),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
                 )
                 TextButton(onClick = { uriHandler.openUri(campusQrUrl) }) {
@@ -1896,7 +1948,7 @@ private fun LandscapeQrCard(
         modifier = modifier,
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = if (LocalDoorDuckDarkTheme.current) 5.dp else 3.dp),
     ) {
         BoxWithConstraints(
             modifier = Modifier
@@ -1920,7 +1972,7 @@ private fun LandscapeQrCard(
                     modifier = Modifier.size(qrSize),
                     shape = RoundedCornerShape(18.dp),
                     color = Color.White,
-                    shadowElevation = 8.dp,
+                    shadowElevation = if (LocalDoorDuckDarkTheme.current) 8.dp else 6.dp,
                 ) {
                     Box(
                         modifier = Modifier.fillMaxSize().padding(8.dp),
@@ -2138,8 +2190,8 @@ private fun ConnectionCard(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
                     colors = ButtonDefaults.filledTonalButtonColors(
-                        containerColor = Color(0xFFF2C64D),
-                        contentColor = Color(0xFF2D220F),
+                        containerColor = if (LocalDoorDuckDarkTheme.current) Color(0xFFF2C64D) else MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = if (LocalDoorDuckDarkTheme.current) Color(0xFF2D220F) else MaterialTheme.colorScheme.onPrimaryContainer,
                     ),
                 ) {
                     Text(stringResource(R.string.action_check_connection))
@@ -2222,15 +2274,42 @@ private fun WidgetInstallCard() {
         )
     }
 
-    TextButton(
-        onClick = { showVariantSheet = true },
-        modifier = Modifier.fillMaxWidth(),
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 48.dp)
+            .clickable(
+                role = Role.Button,
+                onClick = { showVariantSheet = true },
+            ),
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.3f),
+        contentColor = MaterialTheme.colorScheme.secondary,
     ) {
-        Text(
-            text = stringResource(R.string.widget_install_action),
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.SemiBold,
-        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Widgets,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+            )
+            Box(modifier = Modifier.width(10.dp))
+            Text(
+                text = stringResource(R.string.widget_install_action),
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+            )
+        }
     }
 
     if (showVariantSheet) {
@@ -2332,8 +2411,8 @@ private fun WidgetInstallCard() {
                         .height(DashboardActionButtonHeight),
                     shape = DashboardActionButtonShape,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFF8D66A),
-                        contentColor = Color(0xFF33260F),
+                        containerColor = if (LocalDoorDuckDarkTheme.current) Color(0xFFF8D66A) else MaterialTheme.colorScheme.primary,
+                        contentColor = if (LocalDoorDuckDarkTheme.current) Color(0xFF33260F) else MaterialTheme.colorScheme.onPrimary,
                     ),
                 ) {
                     Text(
@@ -2447,60 +2526,16 @@ private fun HelpCard(compact: Boolean = false) {
 }
 
 @Composable
-private fun CreditsCard() {
+private fun SupportFooterCard() {
     val uriHandler = LocalUriHandler.current
     val githubUrl = stringResource(R.string.github_url)
-
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            TextButton(onClick = { uriHandler.openUri(githubUrl) }) {
-                Icon(
-                    imageVector = Icons.Filled.Star,
-                    contentDescription = null,
-                    modifier = Modifier.size(16.dp),
-                    tint = Color(0xFFE8B12C),
-                )
-                Box(modifier = Modifier.width(4.dp))
-                Text(
-                    text = stringResource(R.string.instruction_github_link),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            Box(
-                modifier = Modifier
-                    .heightIn(min = 40.dp)
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = stringResource(R.string.instruction_s21_login),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun DonateCard() {
     val context = LocalContext.current
-    val primaryTextColor = Color(0xFFF8F1E4)
-    val secondaryTextColor = Color(0xFFD7C8B2)
-    val copyContainerColor = Color(0xFF2B241B)
-    val copyBorderColor = Color(0xFF5B4835)
-    val copyValueColor = Color(0xFFFFE4B5)
+    val darkTheme = LocalDoorDuckDarkTheme.current
+    val primaryTextColor = if (darkTheme) Color(0xFFF8F1E4) else MaterialTheme.colorScheme.onSurface
+    val secondaryTextColor = if (darkTheme) Color(0xFFD7C8B2) else MaterialTheme.colorScheme.onSurfaceVariant
+    val copyContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.42f)
+    val copyBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)
+    val copyValueColor = if (darkTheme) Color(0xFFFFE4B5) else MaterialTheme.colorScheme.onSurface
     val phoneValue = Defaults.donatePhoneValue
     val cardValue = Defaults.donateCardValue
     var expanded by rememberSaveable { mutableStateOf(false) }
@@ -2509,89 +2544,143 @@ private fun DonateCard() {
         label = "donateArrowRotation",
     )
 
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 12.dp, bottom = 4.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
     ) {
-        TextButton(
-            onClick = { expanded = !expanded },
+        Column(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                TextButton(onClick = { uriHandler.openUri(githubUrl) }) {
+                    Icon(
+                        imageVector = Icons.Filled.Star,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = if (darkTheme) Color(0xFFE8B12C) else MaterialTheme.colorScheme.primary,
+                    )
+                    Box(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = stringResource(R.string.instruction_github_link),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
                 Text(
-                    text = stringResource(R.string.donate_toggle_text),
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = primaryTextColor,
-                )
-                Box(modifier = Modifier.width(6.dp))
-                Icon(
-                    imageVector = Icons.Filled.ExpandMore,
-                    contentDescription = null,
-                    modifier = Modifier.graphicsLayer(rotationZ = arrowRotation),
-                    tint = secondaryTextColor,
+                    text = stringResource(R.string.instruction_s21_login),
+                    modifier = Modifier.padding(start = 8.dp),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-        }
 
-        AnimatedVisibility(visible = expanded) {
-            Card(
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
+
+            Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .animateContentSize(),
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.38f),
-                ),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.18f)),
+                    .heightIn(min = 48.dp)
+                    .clickable(
+                        role = Role.Button,
+                        onClick = { expanded = !expanded },
+                    ),
+                shape = MaterialTheme.shapes.large,
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
             ) {
-                Column(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
+                    Icon(
+                        imageVector = Icons.Filled.FavoriteBorder,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                        tint = MaterialTheme.colorScheme.secondary,
+                    )
+                    Box(modifier = Modifier.width(10.dp))
                     Text(
-                        text = stringResource(R.string.donate_transfer_sbp),
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                    CopyValuePill(
-                        label = stringResource(R.string.donate_phone_label),
-                        value = phoneValue,
-                        containerColor = copyContainerColor,
-                        borderColor = copyBorderColor,
-                        labelColor = secondaryTextColor,
-                        valueColor = copyValueColor,
-                        onClick = {
-                            copyToClipboard(context, "donate_phone", phoneValue)
-                        },
-                    )
-                    CopyValuePill(
-                        label = stringResource(R.string.donate_card_label),
-                        value = cardValue,
-                        containerColor = copyContainerColor,
-                        borderColor = copyBorderColor,
-                        labelColor = secondaryTextColor,
-                        valueColor = copyValueColor,
-                        onClick = {
-                            copyToClipboard(context, "donate_card", cardValue)
-                        },
-                    )
-                    Text(
-                        text = stringResource(R.string.donate_recipient),
+                        text = stringResource(R.string.donate_toggle_text),
+                        modifier = Modifier.weight(1f),
                         style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
                         color = primaryTextColor,
-                        textAlign = TextAlign.Center,
                     )
-                    Text(
-                        text = stringResource(R.string.donate_disclaimer),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = secondaryTextColor,
-                        textAlign = TextAlign.Center,
+                    Icon(
+                        imageVector = Icons.Filled.ExpandMore,
+                        contentDescription = null,
+                        modifier = Modifier
+                            .size(20.dp)
+                            .graphicsLayer(rotationZ = arrowRotation),
+                        tint = secondaryTextColor,
                     )
+                }
+            }
+
+            AnimatedVisibility(visible = expanded) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .animateContentSize(),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.38f),
+                    ),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.18f)),
+                ) {
+                    Column(
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Text(
+                            text = stringResource(R.string.donate_transfer_sbp),
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.secondary,
+                        )
+                        CopyValuePill(
+                            label = stringResource(R.string.donate_phone_label),
+                            value = phoneValue,
+                            containerColor = copyContainerColor,
+                            borderColor = copyBorderColor,
+                            labelColor = secondaryTextColor,
+                            valueColor = copyValueColor,
+                            onClick = {
+                                copyToClipboard(context, "donate_phone", phoneValue)
+                            },
+                        )
+                        CopyValuePill(
+                            label = stringResource(R.string.donate_card_label),
+                            value = cardValue,
+                            containerColor = copyContainerColor,
+                            borderColor = copyBorderColor,
+                            labelColor = secondaryTextColor,
+                            valueColor = copyValueColor,
+                            onClick = {
+                                copyToClipboard(context, "donate_card", cardValue)
+                            },
+                        )
+                        Text(
+                            text = stringResource(R.string.donate_recipient),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = primaryTextColor,
+                            textAlign = TextAlign.Center,
+                        )
+                        Text(
+                            text = stringResource(R.string.donate_disclaimer),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = secondaryTextColor,
+                            textAlign = TextAlign.Center,
+                        )
+                    }
                 }
             }
         }
@@ -2654,8 +2743,11 @@ private fun DashboardCard(content: @Composable ColumnScope.() -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(28.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (LocalDoorDuckDarkTheme.current) MaterialTheme.colorScheme.surface
+            else MaterialTheme.colorScheme.surfaceContainerLow,
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = if (LocalDoorDuckDarkTheme.current) 5.dp else 2.dp),
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
@@ -2667,7 +2759,11 @@ private fun DashboardCard(content: @Composable ColumnScope.() -> Unit) {
 
 @Composable
 private fun doorDuckBackgroundBrush(): Brush {
-    return Brush.verticalGradient(listOf(Color(0xFF16120D), Color(0xFF201A14), Color(0xFF171411)))
+    return if (LocalDoorDuckDarkTheme.current) {
+        Brush.verticalGradient(listOf(Color(0xFF16120D), Color(0xFF201A14), Color(0xFF171411)))
+    } else {
+        SolidColor(MaterialTheme.colorScheme.background)
+    }
 }
 
 private fun requestPinQrWidget(
