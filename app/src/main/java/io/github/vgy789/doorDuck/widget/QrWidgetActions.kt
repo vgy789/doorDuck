@@ -17,12 +17,6 @@ class RefreshQrAction : ActionCallback {
         val container = DoorDuckApp.container(context)
         val snapshot = container.settingsStore.getSnapshot()
         val nowMs = System.currentTimeMillis()
-        val hasFreshQr = !snapshot.localImagePath.isNullOrBlank() &&
-            !SyncPolicy.isExpired(snapshot.expiresAtMs, nowMs)
-        if (hasFreshQr) {
-            container.widgetUpdateCoordinator.forceWidgetUpdateNow()
-            return
-        }
         if (snapshot.isSyncInProgress) return
         if (SyncPolicy.isManualRefreshBlocked(snapshot.manualRefreshBlockedUntilMs, nowMs)) return
         if (

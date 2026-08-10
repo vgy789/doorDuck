@@ -1,7 +1,10 @@
 <resources>
     <string name="app_name">doorDuck</string>
     <string name="dashboard_subtitle">Rocket.Chat QR Sync</string>
-    <string name="widget_description">QR widget for building access</string>
+    <string name="widget_description">White QR block on the system’s neutral dynamic background</string>
+    <string name="widget_description_clean">Solid white card without a frame</string>
+    <string name="widget_label">Tonal card</string>
+    <string name="widget_label_clean">White</string>
     <string name="widget_hidden_description">QR widget hidden until tap</string>
     <string name="github_url">https://github.com/vgy789/doorDuck</string>
 
@@ -112,20 +115,23 @@
     <string name="sync_error_image_download_failed">image download failed</string>
     <string name="sync_error_unknown">unknown error</string>
 
-    <string name="widget_install_title">Add widget to home screen</string>
     <string name="auto_refresh_label">Automatic renewal</string>
     <string name="auto_refresh_hint">Update QR after it expires.</string>
     <string name="max_brightness_label">Maximum brightness</string>
     <string name="max_brightness_hint">Launch the app with maximum screen brightness.</string>
-    <string name="widget_install_hint">Add the widget with the button below or manually.</string>
     <string name="wizard_launch_hint">Open setup to change the Rocket.Chat address, user ID, or token.</string>
-    <string name="widget_install_action">Add widget</string>
+    <string name="widget_install_action">+ Add widget to home screen</string>
+    <string name="widget_variant_sheet_title">Choose widget style</string>
+    <string name="widget_variant_sheet_hint">Choose a style, then tap “Add”.</string>
+    <string name="widget_variant_tonal_short">Tonal</string>
+    <string name="widget_variant_floating_short">White</string>
+    <string name="widget_variant_add_action">Add to home screen</string>
     <string name="widget_install_step_1">1. Touch and hold an empty area on the home screen, then select Widgets.</string>
     <string name="widget_install_step_2">2. If that does not work, find Widgets in the app menu.</string>
     <string name="widget_install_step_3">3. Find doorDuck and place the QR widget on the home screen.</string>
-    <string name="widget_pin_requested">Confirm adding the widget.</string>
     <string name="widget_pin_not_supported">Could not add it automatically. Add the widget manually.</string>
     <string name="widget_pin_failed">Could not open widget setup. Add the widget manually.</string>
+    <string name="widget_pin_success">Widget added to the home screen.</string>
 
     <string name="widget_not_configured">Set up doorDuck in the app first.</string>
     <string name="widget_loading">Updating QR code…</string>

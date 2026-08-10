@@ -47,7 +47,7 @@ val hasCiReleaseSigning = listOf(
     signingKeyPassword,
 ).all { !it.isNullOrBlank() }
 
-val appVersionName = providers.gradleProperty("releaseVersionName").orElse("1.4.0").get()
+val appVersionName = providers.gradleProperty("releaseVersionName").orElse("99.99.0").get()
 val versionMatch = Regex("^(\\d+)\\.(\\d+)\\.(\\d+)$").matchEntire(appVersionName)
     ?: error("App version must use X.Y.Z format: $appVersionName")
 val calculatedVersionCode = versionMatch.groupValues[1].toInt() * 1_000_000 +

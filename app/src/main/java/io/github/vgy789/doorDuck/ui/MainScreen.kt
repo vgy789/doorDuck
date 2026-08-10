@@ -1,10 +1,12 @@
 package io.github.vgy789.doorDuck.ui
 
+import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.ComponentName
 import android.content.Context
+import android.content.Intent
 import android.content.res.Configuration
 import android.graphics.BitmapFactory
 import android.os.Build
@@ -63,14 +65,20 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -123,7 +131,9 @@ import io.github.vgy789.doorDuck.model.IntensiveCampus
 import io.github.vgy789.doorDuck.model.QrImageValidationStatus
 import io.github.vgy789.doorDuck.model.QrReadiness
 import io.github.vgy789.doorDuck.model.SyncError
+import io.github.vgy789.doorDuck.widget.QrCleanGlanceWidgetReceiver
 import io.github.vgy789.doorDuck.widget.QrGlanceWidgetReceiver
+import io.github.vgy789.doorDuck.widget.WidgetPinSuccessReceiver
 import io.github.vgy789.doorDuck.update.UpdateMessage
 import io.github.vgy789.doorDuck.update.UpdateStatus
 import io.github.vgy789.doorDuck.update.UpdateUiState
@@ -135,6 +145,11 @@ import kotlinx.coroutines.delay
 
 private val DashboardActionButtonHeight = 48.dp
 private val DashboardActionButtonShape = RoundedCornerShape(14.dp)
+
+private enum class WidgetVariantChoice {
+    TONAL_CARD,
+    WHITE,
+}
 
 @Composable
 fun MainScreen(
@@ -2188,54 +2203,200 @@ private fun ConnectionFieldHeader(
 }
 
 @Composable
+@OptIn(ExperimentalMaterial3Api::class)
 private fun WidgetInstallCard() {
     val context = LocalContext.current
-    val pinRequestedMessage = stringResource(R.string.widget_pin_requested)
+    var showVariantSheet by rememberSaveable { mutableStateOf(false) }
+    var selectedVariant by rememberSaveable { mutableStateOf(WidgetVariantChoice.WHITE) }
+    val variantSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val pinNotSupportedMessage = stringResource(R.string.widget_pin_not_supported)
     val pinFailedMessage = stringResource(R.string.widget_pin_failed)
-    DashboardCard {
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Text(
-                text = stringResource(R.string.widget_install_title),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Text(
-                text = stringResource(R.string.widget_install_hint),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
 
-            OutlinedButton(
-                onClick = {
-                    val result = requestPinQrWidget(context)
-                    val message = when (result) {
-                        WidgetPinRequestResult.REQUESTED -> pinRequestedMessage
-                        WidgetPinRequestResult.NOT_SUPPORTED -> pinNotSupportedMessage
-                        WidgetPinRequestResult.FAILED -> pinFailedMessage
-                    }
-                    Toast.makeText(context, message, Toast.LENGTH_LONG).show()
-                },
+    fun requestWidget(receiverClass: Class<out android.appwidget.AppWidgetProvider>) {
+        showVariantSheet = false
+        showWidgetPinResult(
+            context = context,
+            result = requestPinQrWidget(context, receiverClass),
+            notSupportedMessage = pinNotSupportedMessage,
+            failedMessage = pinFailedMessage,
+        )
+    }
+
+    TextButton(
+        onClick = { showVariantSheet = true },
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Text(
+            text = stringResource(R.string.widget_install_action),
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.SemiBold,
+        )
+    }
+
+    if (showVariantSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showVariantSheet = false },
+            sheetState = variantSheetState,
+            containerColor = MaterialTheme.colorScheme.surface,
+        ) {
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(DashboardActionButtonHeight),
-                shape = DashboardActionButtonShape,
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.55f)),
-                colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = Color(0xFFFFE7B5),
-                ),
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp)
+                    .padding(bottom = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 Text(
-                    stringResource(R.string.widget_install_action),
-                    style = MaterialTheme.typography.bodySmall,
+                    text = stringResource(R.string.widget_variant_sheet_title),
+                    style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
                 )
+                Text(
+                    text = stringResource(R.string.widget_variant_sheet_hint),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 4.dp),
+                )
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.extraLarge,
+                    color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(184.dp)
+                            .padding(16.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        WidgetVariantPreview(variant = selectedVariant)
+                    }
+                }
+                val variants = listOf(
+                    WidgetVariantChoice.WHITE to stringResource(R.string.widget_variant_floating_short),
+                    WidgetVariantChoice.TONAL_CARD to stringResource(R.string.widget_variant_tonal_short),
+                )
+                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                    variants.forEachIndexed { index, (variant, label) ->
+                        SegmentedButton(
+                            selected = selectedVariant == variant,
+                            onClick = { selectedVariant = variant },
+                            shape = SegmentedButtonDefaults.itemShape(index, variants.size),
+                            label = {
+                                Text(
+                                    text = label,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            },
+                        )
+                    }
+                }
+                val selectedTitle = when (selectedVariant) {
+                    WidgetVariantChoice.TONAL_CARD -> stringResource(R.string.widget_label)
+                    WidgetVariantChoice.WHITE -> stringResource(R.string.widget_label_clean)
+                }
+                val selectedDescription = when (selectedVariant) {
+                    WidgetVariantChoice.TONAL_CARD -> stringResource(R.string.widget_description)
+                    WidgetVariantChoice.WHITE -> stringResource(R.string.widget_description_clean)
+                }
+                Column(
+                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Text(
+                        text = selectedTitle,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Text(
+                        text = selectedDescription,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Button(
+                    onClick = {
+                        requestWidget(
+                            when (selectedVariant) {
+                                WidgetVariantChoice.TONAL_CARD -> QrGlanceWidgetReceiver::class.java
+                                WidgetVariantChoice.WHITE -> QrCleanGlanceWidgetReceiver::class.java
+                            },
+                        )
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(DashboardActionButtonHeight),
+                    shape = DashboardActionButtonShape,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFFF8D66A),
+                        contentColor = Color(0xFF33260F),
+                    ),
+                ) {
+                    Text(
+                        text = stringResource(R.string.widget_variant_add_action),
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
             }
         }
     }
+}
+
+@Composable
+private fun WidgetVariantPreview(variant: WidgetVariantChoice) {
+    val shape = RoundedCornerShape(28.dp)
+    val outerModifier = when (variant) {
+        WidgetVariantChoice.TONAL_CARD -> Modifier.background(MaterialTheme.colorScheme.surfaceContainer, shape)
+        WidgetVariantChoice.WHITE -> Modifier.background(Color.White, shape)
+    }
+    Box(
+        modifier = Modifier
+            .size(width = 190.dp, height = 118.dp)
+            .then(outerModifier),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(
+                    when (variant) {
+                        WidgetVariantChoice.TONAL_CARD -> 10.dp
+                        WidgetVariantChoice.WHITE -> 0.dp
+                    },
+                )
+                .background(
+                    color = Color.White,
+                    shape = RoundedCornerShape(
+                        if (variant == WidgetVariantChoice.TONAL_CARD) 18.dp else 21.dp,
+                    ),
+                ),
+            contentAlignment = Alignment.Center,
+        ) {
+            Image(
+                painter = painterResource(R.drawable.qr_preview_sample),
+                contentDescription = null,
+                modifier = Modifier.size(90.dp),
+            )
+        }
+    }
+}
+
+private fun showWidgetPinResult(
+    context: Context,
+    result: WidgetPinRequestResult,
+    notSupportedMessage: String,
+    failedMessage: String,
+) {
+    val message = when (result) {
+        WidgetPinRequestResult.REQUESTED -> return
+        WidgetPinRequestResult.NOT_SUPPORTED -> notSupportedMessage
+        WidgetPinRequestResult.FAILED -> failedMessage
+    }
+    Toast.makeText(context, message, Toast.LENGTH_LONG).show()
 }
 
 @Composable
@@ -2509,7 +2670,10 @@ private fun doorDuckBackgroundBrush(): Brush {
     return Brush.verticalGradient(listOf(Color(0xFF16120D), Color(0xFF201A14), Color(0xFF171411)))
 }
 
-private fun requestPinQrWidget(context: Context): WidgetPinRequestResult {
+private fun requestPinQrWidget(
+    context: Context,
+    receiverClass: Class<out android.appwidget.AppWidgetProvider>,
+): WidgetPinRequestResult {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
         return WidgetPinRequestResult.NOT_SUPPORTED
     }
@@ -2518,8 +2682,17 @@ private fun requestPinQrWidget(context: Context): WidgetPinRequestResult {
     if (!appWidgetManager.isRequestPinAppWidgetSupported) {
         return WidgetPinRequestResult.NOT_SUPPORTED
     }
-    val provider = ComponentName(context, QrGlanceWidgetReceiver::class.java)
-    return if (appWidgetManager.requestPinAppWidget(provider, null, null)) {
+    val provider = ComponentName(context, receiverClass)
+    val callbackIntent = Intent(context, WidgetPinSuccessReceiver::class.java).apply {
+        action = WidgetPinSuccessReceiver.ACTION_WIDGET_PINNED
+    }
+    val callback = PendingIntent.getBroadcast(
+        context,
+        receiverClass.name.hashCode(),
+        callbackIntent,
+        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+    )
+    return if (appWidgetManager.requestPinAppWidget(provider, null, callback)) {
         WidgetPinRequestResult.REQUESTED
     } else {
         WidgetPinRequestResult.FAILED

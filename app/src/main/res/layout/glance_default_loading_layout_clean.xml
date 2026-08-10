@@ -3,14 +3,14 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/widget_preview"
+    android:background="@drawable/widget_preview_clean"
     android:gravity="center">
 
     <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_margin="10dp"
-        android:background="@drawable/widget_preview_qr_block">
+        android:layout_margin="4dp"
+        android:padding="8dp">
 
         <ImageView
             android:layout_width="48dp"

@@ -45,6 +45,7 @@ class QrRefreshWorker(
             container.widgetUpdateCoordinator.forceWidgetUpdateNow()
             return Result.success()
         }
+        container.widgetUpdateCoordinator.forceWidgetUpdateNow()
         val result = try {
             container.syncService.refreshQrCode()
         } finally {

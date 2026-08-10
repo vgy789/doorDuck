@@ -7,6 +7,7 @@ import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.OutOfQuotaPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import io.github.vgy789.doorDuck.worker.QrRefreshWorker
@@ -60,7 +61,7 @@ class QrWorkScheduler(context: Context) {
                     .putBoolean(QrRefreshWorker.KEY_SHOW_RESULT_TOAST, showToastOnResult)
                     .build(),
             )
-            .setConstraints(defaultConstraints())
+            .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
             .build()
         workManager.enqueueUniqueWork(
             MANUAL_WORK_NAME,

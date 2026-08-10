@@ -1,0 +1,30 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="40dp"
+    android:height="40dp"
+    android:viewportWidth="21"
+    android:viewportHeight="21">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M0,0h21v21h-21z" />
+    <group
+        android:scaleX="0.75"
+        android:scaleY="0.75"
+        android:translateX="2.625"
+        android:translateY="2.625">
+        <path
+            android:fillColor="#FF111111"
+            android:pathData="
+            M0,0h7v1h-7z M0,1h1v5h-1z M6,1h1v5h-1z M0,6h7v1h-7z M2,2h3v3h-3z
+            M14,0h7v1h-7z M14,1h1v5h-1z M20,1h1v5h-1z M14,6h7v1h-7z M16,2h3v3h-3z
+            M0,14h7v1h-7z M0,15h1v5h-1z M6,15h1v5h-1z M0,20h7v1h-7z M2,16h3v3h-3z
+            M8,0h1v2h-1z M10,0h1v1h-1z M12,1h1v2h-1z
+            M8,3h2v1h-2z M11,4h1v2h-1z M13,5h1v2h-1z
+            M8,7h1v2h-1z M10,7h2v1h-2z M13,8h2v1h-2z M16,7h1v2h-1z M18,8h1v1h-1z
+            M7,10h2v1h-2z M10,9h1v2h-1z M12,10h2v1h-2z M15,10h1v2h-1z M18,10h2v1h-2z
+            M8,12h1v2h-1z M10,12h2v1h-2z M13,12h1v2h-1z M15,13h2v1h-2z M19,12h1v2h-1z
+            M8,15h1v1h-1z M10,15h1v2h-1z M12,15h2v1h-2z M15,16h1v2h-1z M18,15h2v1h-2z
+            M8,18h2v1h-2z M11,18h1v2h-1z M13,19h2v1h-2z M16,18h1v2h-1z M19,19h2v1h-2z
+            M3,8h1v2h-1z M5,9h2v1h-2z M1,11h2v1h-2z M4,12h1v2h-1z M6,11h1v2h-1z
+            M2,13h1v1h-1z M5,14h2v1h-2z" />
+    </group>
+</vector>

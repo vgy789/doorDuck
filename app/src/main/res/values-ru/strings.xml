@@ -1,7 +1,10 @@
 <resources>
     <string name="app_name">doorDuck</string>
     <string name="dashboard_subtitle">Rocket.Chat QR Sync</string>
-    <string name="widget_description">Виджет QR для входа в кампус</string>
+    <string name="widget_description">Белый QR-блок на нейтральном динамическом фоне системы</string>
+    <string name="widget_description_clean">Сплошная белая карточка без рамки</string>
+    <string name="widget_label">Тональная карточка</string>
+    <string name="widget_label_clean">Белый</string>
     <string name="widget_hidden_description">Виджет QR скрыт до нажатия</string>
     <string name="github_url">https://github.com/vgy789/doorDuck</string>
 
@@ -112,20 +115,23 @@
     <string name="sync_error_image_download_failed">не удалось загрузить изображение</string>
     <string name="sync_error_unknown">неизвестная ошибка</string>
 
-    <string name="widget_install_title">Добавить виджет на рабочий стол</string>
     <string name="auto_refresh_label">Автопродление QR</string>
     <string name="auto_refresh_hint">Обновлять QR после истечения срока.</string>
     <string name="max_brightness_label">Максимальная яркость</string>
     <string name="max_brightness_hint">Запускать приложение с максимальной яркостью.</string>
-    <string name="widget_install_hint">Добавь виджет кнопкой ниже или вручную.</string>
     <string name="wizard_launch_hint">Открой настройку, чтобы изменить адрес Rocket.Chat, ID или токен.</string>
-    <string name="widget_install_action">Добавить виджет</string>
+    <string name="widget_install_action">+ Добавить виджет на рабочий стол</string>
+    <string name="widget_variant_sheet_title">Выбери стиль виджета</string>
+    <string name="widget_variant_sheet_hint">Выбери стиль и нажми «Добавить».</string>
+    <string name="widget_variant_tonal_short">Тональный</string>
+    <string name="widget_variant_floating_short">Белый</string>
+    <string name="widget_variant_add_action">Добавить на рабочий стол</string>
     <string name="widget_install_step_1">1. Зажми пустое место на рабочем столе и выбери «Виджеты».</string>
     <string name="widget_install_step_2">2. Если не получилось, найди «Виджеты» в меню приложений.</string>
     <string name="widget_install_step_3">3. Найди doorDuck и добавь QR-виджет на рабочий стол.</string>
-    <string name="widget_pin_requested">Подтверди добавление виджета.</string>
     <string name="widget_pin_not_supported">Не удалось добавить автоматически. Добавь виджет вручную.</string>
     <string name="widget_pin_failed">Не удалось открыть добавление. Добавь виджет вручную.</string>
+    <string name="widget_pin_success">Виджет добавлен на рабочий стол.</string>
 
     <string name="widget_not_configured">Сначала настрой doorDuck в приложении.</string>
     <string name="widget_loading">Обновление QR…</string>

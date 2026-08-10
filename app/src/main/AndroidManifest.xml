@@ -32,7 +32,8 @@
         <receiver
             android:name=".widget.QrGlanceWidgetReceiver"
             android:enabled="true"
-            android:exported="false">
+            android:exported="false"
+            android:label="@string/widget_label">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
@@ -41,6 +42,25 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/qr_glance_widget_info" />
         </receiver>
+
+        <receiver
+            android:name=".widget.QrCleanGlanceWidgetReceiver"
+            android:enabled="true"
+            android:exported="false"
+            android:label="@string/widget_label_clean">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/qr_glance_widget_clean_info" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.WidgetPinSuccessReceiver"
+            android:enabled="true"
+            android:exported="false" />
 
         <provider
             android:name="androidx.core.content.FileProvider"
