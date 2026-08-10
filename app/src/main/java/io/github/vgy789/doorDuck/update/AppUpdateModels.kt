@@ -57,7 +57,7 @@ enum class UpdateMessage {
 }
 
 data class UpdateUiState(
-    val automaticChecksEnabled: Boolean = false,
+    val automaticChecksEnabled: Boolean = DEFAULT_AUTOMATIC_CHECKS_ENABLED,
     val status: UpdateStatus = UpdateStatus.IDLE,
     val release: AppRelease? = null,
     val downloadProgress: Int = 0,

@@ -31,9 +31,17 @@ class AppUpdateTest {
     }
 
     @Test
-    fun automaticCheckIsDisabledByDefaultAndDueAfterOneDay() {
+    fun automaticCheckIsEnabledByDefaultAndDueAfterOneDay() {
         val now = 2 * UpdateRepository.CHECK_INTERVAL_MS
-        assertFalse(isAutomaticCheckDue(UpdateSettings(), now))
+        assertTrue(UpdateSettings().automaticChecksEnabled)
+        assertTrue(UpdateUiState().automaticChecksEnabled)
+        assertTrue(isAutomaticCheckDue(UpdateSettings(), now))
+        assertFalse(
+            isAutomaticCheckDue(
+                UpdateSettings(automaticChecksEnabled = false),
+                now,
+            ),
+        )
         assertFalse(
             isAutomaticCheckDue(
                 UpdateSettings(automaticChecksEnabled = true, lastCheckedAtMs = now - 1_000L),

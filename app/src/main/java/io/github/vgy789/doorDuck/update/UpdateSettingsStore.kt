@@ -14,8 +14,10 @@ import kotlinx.serialization.json.Json
 
 private val Context.updateDataStore: DataStore<Preferences> by preferencesDataStore(name = "door_duck_updates")
 
+const val DEFAULT_AUTOMATIC_CHECKS_ENABLED = true
+
 data class UpdateSettings(
-    val automaticChecksEnabled: Boolean = false,
+    val automaticChecksEnabled: Boolean = DEFAULT_AUTOMATIC_CHECKS_ENABLED,
     val lastCheckedAtMs: Long? = null,
     val etag: String? = null,
     val cachedRelease: AppRelease? = null,
@@ -37,7 +39,7 @@ class UpdateSettingsStore(
     suspend fun get(): UpdateSettings {
         val prefs = context.updateDataStore.data.first()
         return UpdateSettings(
-            automaticChecksEnabled = prefs[Keys.automaticChecksEnabled] ?: false,
+            automaticChecksEnabled = prefs[Keys.automaticChecksEnabled] ?: DEFAULT_AUTOMATIC_CHECKS_ENABLED,
             lastCheckedAtMs = prefs[Keys.lastCheckedAtMs],
             etag = prefs[Keys.etag],
             cachedRelease = prefs[Keys.cachedRelease]?.let { encoded ->
