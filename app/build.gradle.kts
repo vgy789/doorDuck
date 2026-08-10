@@ -77,6 +77,10 @@ android {
         buildConfigField("String", "INTENSIVE_MSK_URL", buildConfigString(normalizedEndpoint(secretValue("INTENSIVE_MSK_URL"))))
         buildConfigField("String", "INTENSIVE_NSK_URL", buildConfigString(normalizedEndpoint(secretValue("INTENSIVE_NSK_URL"))))
         buildConfigField("String", "INTENSIVE_KZN_URL", buildConfigString(normalizedEndpoint(secretValue("INTENSIVE_KZN_URL"))))
+        buildConfigField("boolean", "AUTOMATIC_CHECKS_ENABLED_BY_DEFAULT", "true")
+        buildConfigField("boolean", "DONATIONS_ENABLED", "true")
+        buildConfigField("String", "DONATE_PHONE_VALUE", buildConfigString(secretValue("DONATE_PHONE_VALUE")))
+        buildConfigField("String", "DONATE_CARD_VALUE", buildConfigString(secretValue("DONATE_CARD_VALUE")))
     }
 
     signingConfigs {
@@ -102,6 +106,13 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+        }
+        create("noDonation") {
+            initWith(getByName("release"))
+            buildConfigField("boolean", "AUTOMATIC_CHECKS_ENABLED_BY_DEFAULT", "false")
+            buildConfigField("boolean", "DONATIONS_ENABLED", "false")
+            buildConfigField("String", "DONATE_PHONE_VALUE", buildConfigString(""))
+            buildConfigField("String", "DONATE_CARD_VALUE", buildConfigString(""))
         }
     }
     compileOptions {

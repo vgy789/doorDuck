@@ -6,8 +6,6 @@ object Defaults {
     const val intensiveMskEndpoint = DoorDuckSecrets.intensiveMskEndpoint
     const val intensiveNskEndpoint = DoorDuckSecrets.intensiveNskEndpoint
     const val intensiveKznEndpoint = DoorDuckSecrets.intensiveKznEndpoint
-    const val donatePhoneValue = DoorDuckSecrets.donatePhoneValue
-    const val donateCardValue = DoorDuckSecrets.donateCardValue
     const val intensiveEndpoint = intensiveMskEndpoint
     const val defaultEndpoint = baseEndpoint
     const val botUsername = "qr-code-generator.bot"

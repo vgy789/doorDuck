@@ -1,5 +1,6 @@
 package io.github.vgy789.doorDuck.update
 
+import io.github.vgy789.doorDuck.BuildConfig
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -57,7 +58,7 @@ enum class UpdateMessage {
 }
 
 data class UpdateUiState(
-    val automaticChecksEnabled: Boolean = DEFAULT_AUTOMATIC_CHECKS_ENABLED,
+    val automaticChecksEnabled: Boolean = BuildConfig.AUTOMATIC_CHECKS_ENABLED_BY_DEFAULT,
     val status: UpdateStatus = UpdateStatus.IDLE,
     val release: AppRelease? = null,
     val downloadProgress: Int = 0,

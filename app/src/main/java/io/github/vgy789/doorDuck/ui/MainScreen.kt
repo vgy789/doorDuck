@@ -1050,7 +1050,9 @@ private fun SettingsDashboard(
             onInstall = viewModel::requestUpdateInstallation,
         )
         ClearDataCard(onClearData = viewModel::clearAllData)
-        SupportFooterCard()
+        if (BuildConfig.DONATIONS_ENABLED) {
+            SupportFooterCard()
+        }
     }
 }
 
@@ -1136,7 +1138,9 @@ private fun LandscapeSettingsDashboard(
                 onInstall = viewModel::requestUpdateInstallation,
             )
             ClearDataCard(onClearData = viewModel::clearAllData)
-            SupportFooterCard()
+            if (BuildConfig.DONATIONS_ENABLED) {
+                SupportFooterCard()
+            }
         }
     }
 }
@@ -2536,8 +2540,8 @@ private fun SupportFooterCard() {
     val copyContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.42f)
     val copyBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)
     val copyValueColor = if (darkTheme) Color(0xFFFFE4B5) else MaterialTheme.colorScheme.onSurface
-    val phoneValue = Defaults.donatePhoneValue
-    val cardValue = Defaults.donateCardValue
+    val phoneValue = BuildConfig.DONATE_PHONE_VALUE
+    val cardValue = BuildConfig.DONATE_CARD_VALUE
     var expanded by rememberSaveable { mutableStateOf(false) }
     val arrowRotation by animateFloatAsState(
         targetValue = if (expanded) 180f else 0f,

@@ -8,16 +8,15 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import io.github.vgy789.doorDuck.BuildConfig
 import kotlinx.coroutines.flow.first
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
 private val Context.updateDataStore: DataStore<Preferences> by preferencesDataStore(name = "door_duck_updates")
 
-const val DEFAULT_AUTOMATIC_CHECKS_ENABLED = true
-
 data class UpdateSettings(
-    val automaticChecksEnabled: Boolean = DEFAULT_AUTOMATIC_CHECKS_ENABLED,
+    val automaticChecksEnabled: Boolean = BuildConfig.AUTOMATIC_CHECKS_ENABLED_BY_DEFAULT,
     val lastCheckedAtMs: Long? = null,
     val etag: String? = null,
     val cachedRelease: AppRelease? = null,
@@ -39,7 +38,8 @@ class UpdateSettingsStore(
     suspend fun get(): UpdateSettings {
         val prefs = context.updateDataStore.data.first()
         return UpdateSettings(
-            automaticChecksEnabled = prefs[Keys.automaticChecksEnabled] ?: DEFAULT_AUTOMATIC_CHECKS_ENABLED,
+            automaticChecksEnabled = prefs[Keys.automaticChecksEnabled]
+                ?: BuildConfig.AUTOMATIC_CHECKS_ENABLED_BY_DEFAULT,
             lastCheckedAtMs = prefs[Keys.lastCheckedAtMs],
             etag = prefs[Keys.etag],
             cachedRelease = prefs[Keys.cachedRelease]?.let { encoded ->

@@ -1,5 +1,6 @@
 package io.github.vgy789.doorDuck.update
 
+import io.github.vgy789.doorDuck.BuildConfig
 import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -33,9 +34,18 @@ class AppUpdateTest {
     @Test
     fun automaticCheckIsEnabledByDefaultAndDueAfterOneDay() {
         val now = 2 * UpdateRepository.CHECK_INTERVAL_MS
-        assertTrue(UpdateSettings().automaticChecksEnabled)
-        assertTrue(UpdateUiState().automaticChecksEnabled)
-        assertTrue(isAutomaticCheckDue(UpdateSettings(), now))
+        assertEquals(
+            BuildConfig.AUTOMATIC_CHECKS_ENABLED_BY_DEFAULT,
+            UpdateSettings().automaticChecksEnabled,
+        )
+        assertEquals(
+            BuildConfig.AUTOMATIC_CHECKS_ENABLED_BY_DEFAULT,
+            UpdateUiState().automaticChecksEnabled,
+        )
+        assertEquals(
+            BuildConfig.AUTOMATIC_CHECKS_ENABLED_BY_DEFAULT,
+            isAutomaticCheckDue(UpdateSettings(), now),
+        )
         assertFalse(
             isAutomaticCheckDue(
                 UpdateSettings(automaticChecksEnabled = false),

@@ -73,8 +73,6 @@ val generateDoorDuckSecrets by tasks.registering {
                 const val intensiveMskEndpoint = "${kotlinString(normalizedEndpoint(secretValue("INTENSIVE_MSK_URL")))}"
                 const val intensiveNskEndpoint = "${kotlinString(normalizedEndpoint(secretValue("INTENSIVE_NSK_URL")))}"
                 const val intensiveKznEndpoint = "${kotlinString(normalizedEndpoint(secretValue("INTENSIVE_KZN_URL")))}"
-                const val donatePhoneValue = "${kotlinString(secretValue("DONATE_PHONE_VALUE"))}"
-                const val donateCardValue = "${kotlinString(secretValue("DONATE_CARD_VALUE"))}"
             }
             """.trimIndent(),
         )
