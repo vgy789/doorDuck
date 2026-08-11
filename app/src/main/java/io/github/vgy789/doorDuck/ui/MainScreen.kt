@@ -1951,7 +1951,7 @@ private fun LandscapeQrCard(
     Card(
         modifier = modifier,
         shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
         elevation = CardDefaults.cardElevation(defaultElevation = if (LocalDoorDuckDarkTheme.current) 5.dp else 3.dp),
     ) {
         BoxWithConstraints(
@@ -2282,6 +2282,7 @@ private fun WidgetInstallCard() {
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = 48.dp)
+            .clip(MaterialTheme.shapes.large)
             .clickable(
                 role = Role.Button,
                 onClick = { showVariantSheet = true },
@@ -2590,6 +2591,7 @@ private fun SupportFooterCard() {
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(min = 48.dp)
+                    .clip(MaterialTheme.shapes.large)
                     .clickable(
                         role = Role.Button,
                         onClick = { expanded = !expanded },
