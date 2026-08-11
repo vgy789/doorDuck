@@ -6,13 +6,19 @@ data class ExtractedRocketCredentials(
 )
 
 object RocketCredentialsExtractor {
-    private val tokenRegex = Regex("\\b[A-Za-z0-9_-]{43}\\b")
-    private val userIdRegex = Regex("\\b[A-Za-z0-9_-]{17}\\b")
+    private val credentialRunRegex = Regex("[A-Za-z0-9_-]+")
 
     fun extract(raw: String): ExtractedRocketCredentials {
+        val credentialRuns = credentialRunRegex.findAll(raw).map { it.value }
+        val token = credentialRuns.firstOrNull { it.length == TOKEN_LENGTH }
+        val userId = credentialRuns.firstOrNull { it.length == USER_ID_LENGTH }
+
         return ExtractedRocketCredentials(
-            authToken = tokenRegex.find(raw)?.value,
-            userId = userIdRegex.find(raw)?.value,
+            authToken = token,
+            userId = userId,
         )
     }
+
+    private const val TOKEN_LENGTH = 43
+    private const val USER_ID_LENGTH = 17
 }

@@ -153,6 +153,19 @@ class ExampleUnitTest {
     }
 
     @Test
+    fun extractor_does_not_treat_token_prefix_before_hyphen_as_user_id() {
+        val token = "A".repeat(17) + "-" + "B".repeat(25)
+        val userId = "C".repeat(17)
+
+        val extracted = RocketCredentialsExtractor.extract(
+            "Token: $token\nYour user Id: $userId",
+        )
+
+        assertEquals(token, extracted.authToken)
+        assertEquals(userId, extracted.userId)
+    }
+
+    @Test
     fun wizard_requires_extracted_credentials() {
         val canProceed = WizardStateMachine.canProceed(
             step = WizardStep.CREDENTIALS,
