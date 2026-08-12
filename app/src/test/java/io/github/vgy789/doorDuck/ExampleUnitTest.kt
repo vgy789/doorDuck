@@ -1,5 +1,6 @@
 package io.github.vgy789.doorDuck
 
+import android.content.Intent
 import io.github.vgy789.doorDuck.domain.ConnectionCheckErrorMapper
 import io.github.vgy789.doorDuck.domain.SyncPolicy
 import io.github.vgy789.doorDuck.domain.filterNewMessages
@@ -16,6 +17,7 @@ import io.github.vgy789.doorDuck.update.AppRelease
 import io.github.vgy789.doorDuck.update.changelogItems
 import io.github.vgy789.doorDuck.update.shouldShowUpdateDialog
 import io.github.vgy789.doorDuck.update.UpdateStatus
+import io.github.vgy789.doorDuck.widget.isWidgetRestoreAction
 import java.io.IOException
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.ResponseBody.Companion.toResponseBody
@@ -31,6 +33,15 @@ import retrofit2.Response
  * See [testing documentation](http://d.android.com/tools/testing).
  */
 class ExampleUnitTest {
+
+    @Test
+    fun widget_restore_runs_only_after_boot() {
+        assertTrue(isWidgetRestoreAction(Intent.ACTION_BOOT_COMPLETED))
+        assertFalse(isWidgetRestoreAction(Intent.ACTION_MY_PACKAGE_REPLACED))
+        assertFalse(isWidgetRestoreAction(Intent.ACTION_SCREEN_ON))
+        assertFalse(isWidgetRestoreAction(null))
+    }
+
     @Test
     fun qr_poll_ignores_messages_that_existed_before_request() {
         val messages = listOf(

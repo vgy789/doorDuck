@@ -463,6 +463,9 @@ class MainViewModel(
     }
 
     fun onAppResumed() {
+        viewModelScope.launch {
+            appContainer.widgetUpdateCoordinator.forceWidgetUpdateNow()
+        }
         val update = _uiState.value.update
         if (!update.waitingForInstallPermission) return
         if (appContainer.apkUpdateManager.canInstallPackages()) {
