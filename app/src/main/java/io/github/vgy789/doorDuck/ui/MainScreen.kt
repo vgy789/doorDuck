@@ -1951,7 +1951,13 @@ private fun LandscapeQrCard(
     Card(
         modifier = modifier,
         shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+        colors = CardDefaults.cardColors(
+            containerColor = if (LocalDoorDuckDarkTheme.current) {
+                MaterialTheme.colorScheme.surface
+            } else {
+                MaterialTheme.colorScheme.surfaceContainerLow
+            },
+        ),
         elevation = CardDefaults.cardElevation(defaultElevation = if (LocalDoorDuckDarkTheme.current) 5.dp else 3.dp),
     ) {
         BoxWithConstraints(
